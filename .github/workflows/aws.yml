@@ -65,6 +65,29 @@ jobs:
           done < <(aws ssm get-parameters-by-path \
                 --path "/myapp/prod" --recursive --with-decryption \
                 --query 'Parameters[].[Name,Value]' --output text)
+      - name: Application Healthcheck Gate
+        env:
+          HEALTHCHECK_ENDPOINT: "http://54.221.29.150/healthz"
+          MAX_RETRIES: 12
+          RETRY_INTERVAL: 10
+        run: |
+          echo "Starting healthcheck polling against $HEALTHCHECK_ENDPOINT..."
+
+          for ((i=1; i<=MAX_RETRIES; i++)); do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTHCHECK_ENDPOINT" || true)
+
+            if [ "$HTTP_STATUS" -eq 200 ]; then
+              echo "SUCCESS: Healthcheck passed with status code 200."
+              exit 0
+            fi
+
+            echo "Attempt $i/$MAX_RETRIES failed (HTTP $HTTP_STATUS). Waiting ${RETRY_INTERVAL}s..."
+            sleep "$RETRY_INTERVAL"
+          done
+
+          echo "ERROR: Healthcheck gate timed out after $((MAX_RETRIES * RETRY_INTERVAL)) seconds."
+          exit 1                
+                
 
       - name: Deploy using Systems Manager
         run: |
