@@ -56,7 +56,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: us-east-1
 
-      - ⁠name: Load secrets from Parameter Store
+      - name: Load secrets from Parameter Store
         run: |
           while IFS=$'\t' read -r name value; do
             key="${name##*/}"
