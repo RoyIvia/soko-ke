@@ -56,6 +56,16 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: us-east-1
 
+      - ⁠name: Load secrets from Parameter Store
+        run: |
+          while IFS=$'\t' read -r name value; do
+            key="${name##*/}"
+            echo "::add-mask::$value"
+            echo "$key=$value" >> "$GITHUB_ENV"
+          done < <(aws ssm get-parameters-by-path \
+                --path "/myapp/prod" --recursive --with-decryption \
+                --query 'Parameters[].[Name,Value]' --output text)
+
       - name: Deploy using Systems Manager
         run: |
           COMMAND_ID=$(aws ssm send-command \
