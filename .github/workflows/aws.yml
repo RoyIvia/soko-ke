@@ -10,8 +10,8 @@ permissions:
   id-token: write
 
 env:
-  AWS_REGION: YOUR_AWS_REGION
-  EC2_INSTANCE_ID: YOUR_INSTANCE_ID
+  AWS_REGION: us-east-1
+  EC2_INSTANCE_ID: i-0097ef396b5616206
   APP_DIR: /opt/soko-ke
 
 jobs:
@@ -50,11 +50,11 @@ jobs:
     environment: production
 
     steps:
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Deploy using Systems Manager
         run: |
