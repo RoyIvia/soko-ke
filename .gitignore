@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Build outputs
+dist/
+**/dist/
+build/
+**/build/
+
+# TypeScript build metadata
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/
+
+# Temporary files and caches
+.cache/
+.tmp/
+temp/
+
+# macOS
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/

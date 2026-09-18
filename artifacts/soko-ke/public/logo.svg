@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" role="img" aria-label="SokoKE">
+  <rect width="40" height="40" rx="12" fill="#0f766e"/>
+  <path d="M12 25c4-8 12-8 16 0M15 18h.01M25 18h.01" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+  <text x="50" y="28" font-family="Georgia,serif" font-size="24" font-weight="700" fill="#0f766e">Soko</text>
+  <text x="107" y="28" font-family="Georgia,serif" font-size="24" font-weight="700" fill="#171717">KE</text>
+</svg>
