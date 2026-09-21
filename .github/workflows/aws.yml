@@ -64,6 +64,7 @@ jobs:
             --parameters 'commands=[
               "set -e",
               "git config --global --add safe.directory /opt/soko-ke",
+              "export HOME=/root",
               "cd /opt/soko-ke",
               "git fetch origin main",
               "git reset --hard origin/main",
