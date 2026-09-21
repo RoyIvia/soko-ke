@@ -54,18 +54,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: us-east-1
-
-      - name: Load secrets from Parameter Store
-        run: |
-          while IFS=$'\t' read -r name value; do
-            key="${name##*/}"
-            echo "::add-mask::$value"
-            echo "$key=$value" >> "$GITHUB_ENV"
-          done < <(aws ssm get-parameters-by-path \
-                --path "/myapp/prod" --recursive --with-decryption \
-                --query 'Parameters[].[Name,Value]' --output text)
-      
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy using Systems Manager
         run: |
@@ -86,26 +75,38 @@ jobs:
 
           echo "SSM Command ID: $COMMAND_ID"
 
-          aws ssm wait command-executed \
+          if ! aws ssm wait command-executed \
             --command-id "$COMMAND_ID" \
-            --instance-id "${EC2_INSTANCE_ID}"
+            --instance-id "${EC2_INSTANCE_ID}"; then
+
+            echo "SSM deployment failed."
+
+            aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "${EC2_INSTANCE_ID}" \
+              --query '{Status:Status,ResponseCode:ResponseCode,Stdout:StandardOutputContent,Stderr:StandardErrorContent}'
+
+            exit 1
+          fi
 
           aws ssm get-command-invocation \
             --command-id "$COMMAND_ID" \
-            --instance-id "${EC2_INSTANCE_ID}"
+            --instance-id "${EC2_INSTANCE_ID}" \
+            --query '{Status:Status,ResponseCode:ResponseCode}'
+
       - name: Application Healthcheck Gate
         env:
-          HEALTHCHECK_ENDPOINT: "http://100.59.186.252/healthz"
+          HEALTHCHECK_ENDPOINT: "http://100.59.186.252/api/healthz"
           MAX_RETRIES: 12
           RETRY_INTERVAL: 10
         run: |
-          echo "Starting healthcheck polling against $HEALTHCHECK_ENDPOINT..."
+          echo "Starting post-deployment healthcheck..."
 
           for ((i=1; i<=MAX_RETRIES; i++)); do
             HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTHCHECK_ENDPOINT" || true)
 
             if [ "$HTTP_STATUS" -eq 200 ]; then
-              echo "SUCCESS: Healthcheck passed with status code 200."
+              echo "SUCCESS: Application healthcheck returned HTTP 200."
               exit 0
             fi
 
@@ -113,6 +114,5 @@ jobs:
             sleep "$RETRY_INTERVAL"
           done
 
-          echo "ERROR: Healthcheck gate timed out after $((MAX_RETRIES * RETRY_INTERVAL)) seconds."
+          echo "ERROR: Application healthcheck failed after $((MAX_RETRIES * RETRY_INTERVAL)) seconds."
           exit 1
-
