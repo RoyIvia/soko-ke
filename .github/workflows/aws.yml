@@ -63,13 +63,12 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --parameters 'commands=[
               "set -e",
-              "git config --file /root/.gitconfig --add safe.directory /opt/soko-ke",
+              "git -c safe.directory=/opt/soko-ke -C /opt/soko-ke fetch origin main",
+              "git -c safe.directory=/opt/soko-ke -C /opt/soko-ke reset --hard origin/main",
               "cd /opt/soko-ke",
-              "git fetch origin main",
-              "git reset --hard origin/main",
               "pnpm install --frozen-lockfile",
               "pnpm run build",
-              "sudo systemctl restart soko-ke"
+              "systemctl restart soko-ke"
             ]' \
             --query "Command.CommandId" \
             --output text)
