@@ -63,8 +63,7 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --parameters 'commands=[
               "set -e",
-              "git config --global --add safe.directory /opt/soko-ke",
-              "export HOME=/root",
+              "git config --file /root/.gitconfig --add safe.directory /opt/soko-ke",
               "cd /opt/soko-ke",
               "git fetch origin main",
               "git reset --hard origin/main",
@@ -86,15 +85,25 @@ jobs:
             aws ssm get-command-invocation \
               --command-id "$COMMAND_ID" \
               --instance-id "${EC2_INSTANCE_ID}" \
-              --query '{Status:Status,ResponseCode:ResponseCode,Stdout:StandardOutputContent,Stderr:StandardErrorContent}'
+              --query '{
+                Status:Status,
+                ResponseCode:ResponseCode,
+                Stdout:StandardOutputContent,
+                Stderr:StandardErrorContent
+              }'
 
             exit 1
           fi
 
+          echo "SSM deployment completed successfully."
+
           aws ssm get-command-invocation \
             --command-id "$COMMAND_ID" \
             --instance-id "${EC2_INSTANCE_ID}" \
-            --query '{Status:Status,ResponseCode:ResponseCode}'
+            --query '{
+              Status:Status,
+              ResponseCode:ResponseCode
+            }'
 
       - name: Application Healthcheck Gate
         env:
@@ -102,19 +111,28 @@ jobs:
           MAX_RETRIES: 12
           RETRY_INTERVAL: 10
         run: |
-          echo "Starting post-deployment healthcheck..."
+          echo "Starting post-deployment healthcheck against ${HEALTHCHECK_ENDPOINT}..."
 
           for ((i=1; i<=MAX_RETRIES; i++)); do
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTHCHECK_ENDPOINT" || true)
+            HTTP_STATUS=$(curl \
+              --silent \
+              --output /dev/null \
+              --write-out "%{http_code}" \
+              --max-time 10 \
+              "$HEALTHCHECK_ENDPOINT" || true)
 
-            if [ "$HTTP_STATUS" -eq 200 ]; then
+            if [ "$HTTP_STATUS" = "200" ]; then
               echo "SUCCESS: Application healthcheck returned HTTP 200."
               exit 0
             fi
 
-            echo "Attempt $i/$MAX_RETRIES failed (HTTP $HTTP_STATUS). Waiting ${RETRY_INTERVAL}s..."
-            sleep "$RETRY_INTERVAL"
+            echo "Attempt ${i}/${MAX_RETRIES} failed (HTTP ${HTTP_STATUS})."
+
+            if [ "$i" -lt "$MAX_RETRIES" ]; then
+              echo "Waiting ${RETRY_INTERVAL}s before retrying..."
+              sleep "$RETRY_INTERVAL"
+            fi
           done
 
-          echo "ERROR: Application healthcheck failed after $((MAX_RETRIES * RETRY_INTERVAL)) seconds."
+          echo "ERROR: Application healthcheck failed after ${MAX_RETRIES} attempts."
           exit 1
