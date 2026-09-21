@@ -63,6 +63,7 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --parameters 'commands=[
               "set -e",
+              "git config --global --add safe.directory /opt/soko-ke",
               "cd /opt/soko-ke",
               "git fetch origin main",
               "git reset --hard origin/main",
