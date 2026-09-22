@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
+const projectRoot = path.resolve(import.meta.dirname);
+const workspaceRoot = path.resolve(import.meta.dirname, '../..');
+
 const port = Number(process.env.PORT ?? 5173);
 const basePath = process.env.BASE_PATH ?? '/';
 
@@ -11,6 +14,13 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 export default defineConfig({
+  root: projectRoot,
+
+  // Load environment files from the repository root.
+  // Local:      /Users/royivia/Desktop/soko-ke/.env
+  // Production: /opt/soko-ke/.env
+  envDir: workspaceRoot,
+
   base: basePath,
 
   plugins: [
@@ -24,8 +34,6 @@ export default defineConfig({
     },
     dedupe: ['react', 'react-dom'],
   },
-
-  root: path.resolve(import.meta.dirname),
 
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
