@@ -47,6 +47,55 @@ const promotionPackages = [
   },
 ] as const;
 
+const merchantEditableFields = [
+  "name",
+  "email",
+  "phone",
+  "county",
+  "description",
+] as const;
+
+function getMerchantProfileUpdate(body: unknown) {
+  const source =
+    body && typeof body === "object"
+      ? (body as Record<string, unknown>)
+      : {};
+
+  const update: Partial<
+    Pick<
+      typeof merchantsTable.$inferInsert,
+      "name" | "email" | "phone" | "county" | "description"
+    >
+  > = {};
+
+  for (const field of merchantEditableFields) {
+    const value = source[field];
+
+    if (value !== undefined) {
+      if (typeof value !== "string" || !value.trim()) {
+        return {
+          error: `${field} must be a non-empty string`,
+          update: null,
+        };
+      }
+
+      update[field] = value.trim();
+    }
+  }
+
+  if (Object.keys(update).length === 0) {
+    return {
+      error: "At least one merchant profile field is required",
+      update: null,
+    };
+  }
+
+  return {
+    error: null,
+    update,
+  };
+}
+
 router.get("/me", async (req, res): Promise<void> => {
   const user = await ensureUser(req);
 
@@ -130,6 +179,82 @@ router.post(
   },
 );
 
+/**
+ * Allow the owner of a merchant application/profile to edit the business
+ * information associated with that merchant.
+ *
+ * A rejected application is automatically returned to "pending" when the
+ * owner edits and resubmits it.
+ *
+ * An approved merchant remains approved when editing profile information.
+ *
+ * Status, ownership, approval timestamps, and authorization fields are never
+ * accepted from the client through this endpoint.
+ */
+router.patch(
+  "/merchant/profile",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const user = res.locals.user as typeof usersTable.$inferSelect;
+
+    if (!user.merchantId) {
+      res.status(404).json({
+        error: "Merchant application not found",
+      });
+      return;
+    }
+
+    const [current] = await db
+      .select()
+      .from(merchantsTable)
+      .where(
+        and(
+          eq(merchantsTable.id, user.merchantId),
+          eq(merchantsTable.ownerClerkId, user.clerkUserId),
+        ),
+      );
+
+    if (!current) {
+      res.status(404).json({
+        error: "Merchant application not found",
+      });
+      return;
+    }
+
+    const { update, error } = getMerchantProfileUpdate(req.body);
+
+    if (!update) {
+      res.status(400).json({ error });
+      return;
+    }
+
+    const resubmitting = current.status === "rejected";
+
+    const [merchant] = await db
+      .update(merchantsTable)
+      .set({
+        ...update,
+        ...(resubmitting
+          ? {
+              status: "pending",
+              approvedAt: null,
+            }
+          : {}),
+      })
+      .where(eq(merchantsTable.id, current.id))
+      .returning();
+
+    if (resubmitting) {
+      await db
+        .update(usersTable)
+        .set({ role: "customer" })
+        .where(eq(usersTable.clerkUserId, user.clerkUserId));
+    }
+
+    res.json(formatMerchant(merchant));
+  },
+);
+
 router.get(
   "/merchants",
   requireRole("platform_admin"),
@@ -140,6 +265,47 @@ router.get(
       .orderBy(desc(merchantsTable.createdAt));
 
     res.json(merchants.map(formatMerchant));
+  },
+);
+
+/**
+ * Allow a platform administrator to edit merchant business information
+ * independently of approval status.
+ */
+router.patch(
+  "/merchants/:id",
+  requireRole("platform_admin"),
+  async (req, res): Promise<void> => {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({
+        error: "A valid merchant ID is required",
+      });
+      return;
+    }
+
+    const { update, error } = getMerchantProfileUpdate(req.body);
+
+    if (!update) {
+      res.status(400).json({ error });
+      return;
+    }
+
+    const [merchant] = await db
+      .update(merchantsTable)
+      .set(update)
+      .where(eq(merchantsTable.id, id))
+      .returning();
+
+    if (!merchant) {
+      res.status(404).json({
+        error: "Merchant application not found",
+      });
+      return;
+    }
+
+    res.json(formatMerchant(merchant));
   },
 );
 
@@ -158,6 +324,13 @@ router.patch(
 
     const id = Number(req.params.id);
 
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({
+        error: "A valid merchant ID is required",
+      });
+      return;
+    }
+
     const [merchant] = await db
       .update(merchantsTable)
       .set({
@@ -168,7 +341,9 @@ router.patch(
       .returning();
 
     if (!merchant) {
-      res.status(404).json({ error: "Merchant application not found" });
+      res.status(404).json({
+        error: "Merchant application not found",
+      });
       return;
     }
 
