@@ -1,7 +1,7 @@
 import { Route, Switch, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
-import { ClerkProvider, Show, SignIn, SignUp } from "@clerk/react";
+import { ClerkProvider, Show, useAuth } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import NotFound from "@/pages/not-found";
 
@@ -15,14 +15,44 @@ import { Dashboard } from "@/pages/admin/Dashboard";
 import { AdminProducts } from "@/pages/admin/Products";
 import { AdminOrders } from "@/pages/admin/Orders";
 import { AdminMerchants } from "@/pages/admin/Merchants";
-import { MerchantPortal, PromotionSuccess } from "@/pages/MerchantPortal";
-import { SignInPage, SignUpPage, localization } from "@/pages/Auth";
+import {
+  MerchantPortal,
+  PromotionSuccess,
+} from "@/pages/MerchantPortal";
+import {
+  SignInPage,
+  SignUpPage,
+  localization,
+} from "@/pages/Auth";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+function ClerkDiagnostic() {
+  const { isLoaded, isSignedIn } = useAuth();
+
+  console.log("Clerk diagnostic:", {
+    isLoaded,
+    isSignedIn,
+    protocol: window.location.protocol,
+    secureContext: window.isSecureContext,
+  });
+
+  return null;
+}
+
 function HomeRoute() {
-  return <><Show when="signed-in"><MerchantPortal /></Show><Show when="signed-out"><Home /></Show></>;
+  return (
+    <>
+      <Show when="signed-in">
+        <MerchantPortal />
+      </Show>
+
+      <Show when="signed-out">
+        <Home />
+      </Show>
+    </>
+  );
 }
 
 const queryClient = new QueryClient({
@@ -62,15 +92,18 @@ function Router() {
 
 function App() {
   return (
-       <ClerkProvider
- 	 publishableKey={clerkPubKey}
- 	 appearance={{ theme: shadcn }}
- 	 localization={localization}
-	>		
+    <ClerkProvider
+      publishableKey={clerkPubKey}
+      appearance={{ theme: shadcn }}
+      localization={localization}
+    >
+      <ClerkDiagnostic />
+
       <QueryClientProvider client={queryClient}>
         <WouterRouter base={basePath}>
           <Router />
         </WouterRouter>
+
         <Toaster position="top-right" richColors />
       </QueryClientProvider>
     </ClerkProvider>
