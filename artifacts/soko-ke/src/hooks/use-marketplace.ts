@@ -56,12 +56,25 @@ export type MerchantProfileInput = {
 export type MerchantProduct = {
   id: number;
   name: string;
+  description: string;
   priceKes: number;
-  stock: number;
+  category: string;
   imageUrl: string;
-  listingStatus: string;
+  stock: number;
+  county: string | null;
+  listingStatus: "pending" | "approved" | "rejected";
   isSponsored: boolean;
   sponsoredUntil: string | null;
+};
+
+export type MerchantProductInput = {
+  name: string;
+  description: string;
+  priceKes: number;
+  category: string;
+  imageUrl: string;
+  stock: number;
+  county: string;
 };
 
 export type PromotionPackage = {
@@ -142,16 +155,17 @@ export function useCreateMerchantProduct() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: Record<string, string | number>) =>
+    mutationFn: (data: MerchantProductInput) =>
       api<MerchantProduct>("/merchant/products", {
         method: "POST",
         body: JSON.stringify(data),
       }),
 
-    onSuccess: () =>
-      queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: ["merchant-products"],
-      }),
+      });
+    },
   });
 }
 
@@ -164,17 +178,25 @@ export function useUpdateMerchantProduct() {
       data,
     }: {
       id: number;
-      data: Record<string, string | number>;
+      data: MerchantProductInput;
     }) =>
-      api<MerchantProduct>(`/merchant/products/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      }),
+      api<MerchantProduct>(
+        `/merchant/products/${id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(data),
+        }
+      ),
 
-    onSuccess: () =>
-      queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: ["merchant-products"],
-      }),
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
+    },
   });
 }
 
@@ -187,10 +209,15 @@ export function useDeleteMerchantProduct() {
         method: "DELETE",
       }),
 
-    onSuccess: () =>
-      queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: ["merchant-products"],
-      }),
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
+    },
   });
 }
 
@@ -214,15 +241,23 @@ export function useUpdateProductStatus() {
       id: number;
       status: string;
     }) =>
-      api<MerchantProduct>(`/admin/products/${id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      }),
+      api<MerchantProduct>(
+        `/admin/products/${id}/status`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ status }),
+        }
+      ),
 
-    onSuccess: () =>
-      queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: ["admin-products"],
-      }),
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
+    },
   });
 }
 
@@ -252,10 +287,11 @@ export function useApplyMerchant() {
         body: JSON.stringify(data),
       }),
 
-    onSuccess: () =>
-      queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: ["marketplace-me"],
-      }),
+      });
+    },
   });
 }
 
@@ -276,14 +312,9 @@ export function useUpdateMerchantStatus() {
       }),
 
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["merchants"],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["marketplace-me"],
-        }),
-      ]);
+      await queryClient.invalidateQueries({
+        queryKey: ["merchants"],
+      });
     },
   });
 }
@@ -297,7 +328,10 @@ export function useCreatePromotionCheckout() {
       productId: number;
       packageId: string;
     }) =>
-      api<{ checkoutUrl: string }>("/promotions/checkout", {
+      api<{
+        checkoutUrl: string;
+        campaign: any;
+      }>("/promotions/checkout", {
         method: "POST",
         body: JSON.stringify({
           productId,
@@ -307,8 +341,12 @@ export function useCreatePromotionCheckout() {
   });
 }
 
-export function confirmPromotion(sessionId: string) {
-  return api(
-    `/promotions/confirm?session_id=${encodeURIComponent(sessionId)}`
+export async function confirmPromotion(
+  sessionId: string
+) {
+  return api<any>(
+    `/promotions/confirm?session_id=${encodeURIComponent(
+      sessionId
+    )}`
   );
 }

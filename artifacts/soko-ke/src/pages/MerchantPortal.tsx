@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 import {
   Link,
   Redirect,
@@ -16,22 +19,38 @@ import {
   Store,
   XCircle,
 } from "lucide-react";
-import { useUser, UserButton } from "@clerk/react";
+import {
+  useUser,
+  UserButton,
+} from "@clerk/react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+
+import {
+  Button,
+} from "@/components/ui/button";
+import {
+  Input,
+} from "@/components/ui/input";
+import {
+  Textarea,
+} from "@/components/ui/textarea";
+import {
+  Badge,
+} from "@/components/ui/badge";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
 import { formatKes } from "@/lib/utils";
+
 import {
   confirmPromotion,
   type MarketplaceMe,
+  type MerchantProduct,
+  type MerchantProductInput,
   type MerchantProfileInput,
   useApplyMerchant,
   useCreateMerchantProduct,
@@ -45,9 +64,26 @@ import {
   useUpdateMerchantProfile,
 } from "@/hooks/use-marketplace";
 
+type ProductFormState = {
+  name: string;
+  description: string;
+  priceKes: string;
+  category: string;
+  imageUrl: string;
+  stock: string;
+  county: string;
+};
+
 export function MerchantPortal() {
-  const { isSignedIn, isLoaded } = useUser();
-  const { data: me, isLoading } = useMarketplaceMe();
+  const {
+    isSignedIn,
+    isLoaded,
+  } = useUser();
+
+  const {
+    data: me,
+    isLoading,
+  } = useMarketplaceMe();
 
   if (!isLoaded || isLoading) {
     return (
@@ -58,17 +94,25 @@ export function MerchantPortal() {
   }
 
   if (!isSignedIn) {
-    return <Redirect to="/sign-in" />;
+    return (
+      <Redirect to="/sign-in" />
+    );
   }
 
-  if (me?.role === "platform_admin") {
-    return <Redirect to="/admin" />;
+  if (
+    me?.role === "platform_admin"
+  ) {
+    return (
+      <Redirect to="/admin" />
+    );
   }
 
   return (
     <PortalShell>
       {me?.merchant ? (
-        <MerchantDashboard merchant={me.merchant} />
+        <MerchantDashboard
+          merchant={me.merchant}
+        />
       ) : (
         <MerchantApplication />
       )}
@@ -116,7 +160,8 @@ function PortalShell({
 }
 
 function MerchantApplication() {
-  const apply = useApplyMerchant();
+  const apply =
+    useApplyMerchant();
 
   const [form, setForm] =
     useState<MerchantProfileInput>({
@@ -130,11 +175,12 @@ function MerchantApplication() {
   const update = (
     key: keyof MerchantProfileInput,
     value: string
-  ) =>
+  ) => {
     setForm((current) => ({
       ...current,
       [key]: value,
     }));
+  };
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -148,9 +194,9 @@ function MerchantApplication() {
         </h1>
 
         <p className="text-muted-foreground mt-3">
-          Apply to become a SokoKE merchant. Our team
-          reviews every application before your shop goes
-          live.
+          Apply to become a SokoKE merchant.
+          Our team reviews every application
+          before your shop goes live.
         </p>
       </div>
 
@@ -162,62 +208,10 @@ function MerchantApplication() {
         </CardHeader>
 
         <CardContent className="space-y-5">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field
-              label="Business name"
-              value={form.name}
-              onChange={(value) =>
-                update("name", value)
-              }
-              placeholder="e.g. Nairobi Threads"
-            />
-
-            <Field
-              label="Business email"
-              value={form.email}
-              onChange={(value) =>
-                update("email", value)
-              }
-              placeholder="you@business.co.ke"
-              type="email"
-            />
-
-            <Field
-              label="Phone number"
-              value={form.phone}
-              onChange={(value) =>
-                update("phone", value)
-              }
-              placeholder="+254 7..."
-            />
-
-            <Field
-              label="County"
-              value={form.county}
-              onChange={(value) =>
-                update("county", value)
-              }
-              placeholder="Nairobi"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">
-              Tell us about your shop
-            </label>
-
-            <Textarea
-              className="mt-2"
-              value={form.description}
-              onChange={(event) =>
-                update(
-                  "description",
-                  event.target.value
-                )
-              }
-              placeholder="What do you sell and what makes your business special?"
-            />
-          </div>
+          <MerchantProfileForm
+            form={form}
+            onChange={update}
+          />
 
           <Button
             className="w-full"
@@ -229,7 +223,9 @@ function MerchantApplication() {
                     "Application sent for review"
                   ),
                 onError: (error) =>
-                  toast.error(error.message),
+                  toast.error(
+                    error.message
+                  ),
               })
             }
           >
@@ -252,20 +248,30 @@ function MerchantDashboard({
     MarketplaceMe["merchant"]
   >;
 }) {
-  if (merchant.status === "pending") {
+  if (
+    merchant.status === "pending"
+  ) {
     return (
-      <PendingMerchant merchant={merchant} />
+      <PendingMerchant
+        merchant={merchant}
+      />
     );
   }
 
-  if (merchant.status === "rejected") {
+  if (
+    merchant.status === "rejected"
+  ) {
     return (
-      <RejectedMerchant merchant={merchant} />
+      <RejectedMerchant
+        merchant={merchant}
+      />
     );
   }
 
   return (
-    <ApprovedMerchant merchant={merchant} />
+    <ApprovedMerchant
+      merchant={merchant}
+    />
   );
 }
 
@@ -276,7 +282,8 @@ function PendingMerchant({
     MarketplaceMe["merchant"]
   >;
 }) {
-  const [, setLocation] = useLocation();
+  const [, setLocation] =
+    useLocation();
 
   return (
     <div className="max-w-2xl mx-auto py-10">
@@ -290,9 +297,10 @@ function PendingMerchant({
         </h1>
 
         <p className="text-muted-foreground mt-3 max-w-md mx-auto">
-          We review merchant applications carefully.
-          You’ll be able to add products and run
-          promotions once approved.
+          We review merchant applications
+          carefully. You’ll be able to add
+          products and run promotions once
+          approved.
         </p>
       </div>
 
@@ -303,7 +311,9 @@ function PendingMerchant({
       <div className="text-center">
         <Button
           variant="outline"
-          onClick={() => setLocation("/")}
+          onClick={() =>
+            setLocation("/")
+          }
         >
           Back to marketplace
         </Button>
@@ -322,7 +332,8 @@ function RejectedMerchant({
   const updateMerchant =
     useUpdateMerchantProfile();
 
-  const [, setLocation] = useLocation();
+  const [, setLocation] =
+    useLocation();
 
   const [editing, setEditing] =
     useState(false);
@@ -333,17 +344,19 @@ function RejectedMerchant({
       email: merchant.email,
       phone: merchant.phone,
       county: merchant.county,
-      description: merchant.description,
+      description:
+        merchant.description,
     });
 
   const updateField = (
     key: keyof MerchantProfileInput,
     value: string
-  ) =>
+  ) => {
     setForm((current) => ({
       ...current,
       [key]: value,
     }));
+  };
 
   const resubmit = () => {
     updateMerchant.mutate(form, {
@@ -351,8 +364,10 @@ function RejectedMerchant({
         toast.success(
           "Application updated and resubmitted for review"
         );
+
         setEditing(false);
       },
+
       onError: (error) =>
         toast.error(error.message),
     });
@@ -370,10 +385,11 @@ function RejectedMerchant({
         </h1>
 
         <p className="text-muted-foreground mt-3 max-w-lg mx-auto">
-          Your merchant application was not approved
-          in its current form. Review your business
-          information, make any necessary changes, and
-          resubmit it for another review.
+          Your merchant application was not
+          approved in its current form. Review
+          your business information, make any
+          necessary changes, and resubmit it
+          for another review.
         </p>
       </div>
 
@@ -385,7 +401,9 @@ function RejectedMerchant({
 
           <div className="flex flex-wrap justify-center gap-3">
             <Button
-              onClick={() => setEditing(true)}
+              onClick={() =>
+                setEditing(true)
+              }
             >
               <Pencil className="mr-2 h-4 w-4" />
               Edit and resubmit
@@ -393,7 +411,9 @@ function RejectedMerchant({
 
             <Button
               variant="outline"
-              onClick={() => setLocation("/")}
+              onClick={() =>
+                setLocation("/")
+              }
             >
               Back to marketplace
             </Button>
@@ -435,7 +455,8 @@ function RejectedMerchant({
                     name: merchant.name,
                     email: merchant.email,
                     phone: merchant.phone,
-                    county: merchant.county,
+                    county:
+                      merchant.county,
                     description:
                       merchant.description,
                   });
@@ -448,8 +469,8 @@ function RejectedMerchant({
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Resubmitting your application will
-              return it to pending review.
+              Resubmitting your application
+              will return it to pending review.
             </p>
           </CardContent>
         </Card>
@@ -465,14 +486,17 @@ function ApprovedMerchant({
     MarketplaceMe["merchant"]
   >;
 }) {
-  const { data: products = [] } =
-    useMerchantProducts(true);
+  const {
+    data: products = [],
+  } = useMerchantProducts(true);
 
-  const { data: packages = [] } =
-    usePromotionPackages();
+  const {
+    data: packages = [],
+  } = usePromotionPackages();
 
-  const { data: promotions = [] } =
-    usePromotions(true);
+  const {
+    data: promotions = [],
+  } = usePromotions(true);
 
   const checkout =
     useCreatePromotionCheckout();
@@ -489,6 +513,8 @@ function ApprovedMerchant({
   const updateMerchant =
     useUpdateMerchantProfile();
 
+  const search = useSearch();
+
   const [selectedProduct, setSelectedProduct] =
     useState<number | null>(null);
 
@@ -498,17 +524,23 @@ function ApprovedMerchant({
   const [editingProfile, setEditingProfile] =
     useState(false);
 
+  const [editingProduct, setEditingProduct] =
+    useState<MerchantProduct | null>(
+      null
+    );
+
   const [profileForm, setProfileForm] =
     useState<MerchantProfileInput>({
       name: merchant.name,
       email: merchant.email,
       phone: merchant.phone,
       county: merchant.county,
-      description: merchant.description,
+      description:
+        merchant.description,
     });
 
   const [newProduct, setNewProduct] =
-    useState({
+    useState<ProductFormState>({
       name: "",
       description: "",
       priceKes: "",
@@ -518,35 +550,290 @@ function ApprovedMerchant({
       county: merchant.county,
     });
 
+  const [
+    editProductForm,
+    setEditProductForm,
+  ] = useState<ProductFormState>({
+    name: "",
+    description: "",
+    priceKes: "",
+    category: "",
+    imageUrl: "",
+    stock: "",
+    county: "",
+  });
+
+  useEffect(() => {
+    const params =
+      new URLSearchParams(search);
+
+    const promotion =
+      params.get("promotion");
+
+    const sessionId =
+      params.get("session_id");
+
+    if (
+      promotion !== "success" ||
+      !sessionId
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    confirmPromotion(sessionId)
+      .then(() => {
+        if (!cancelled) {
+          toast.success(
+            "Promotion activated"
+          );
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Could not confirm promotion"
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [search]);
+
   const updateProductForm = (
-    key: string,
+    key: keyof ProductFormState,
     value: string
-  ) =>
+  ) => {
     setNewProduct((current) => ({
       ...current,
       [key]: value,
     }));
+  };
 
   const updateProfileField = (
     key: keyof MerchantProfileInput,
     value: string
-  ) =>
+  ) => {
     setProfileForm((current) => ({
       ...current,
       [key]: value,
     }));
+  };
+
+  const updateEditProductField = (
+    key: keyof ProductFormState,
+    value: string
+  ) => {
+    setEditProductForm(
+      (current) => ({
+        ...current,
+        [key]: value,
+      })
+    );
+  };
 
   const saveProfile = () => {
-    updateMerchant.mutate(profileForm, {
-      onSuccess: () => {
-        toast.success(
-          "Business profile updated"
-        );
-        setEditingProfile(false);
-      },
-      onError: (error) =>
-        toast.error(error.message),
+    updateMerchant.mutate(
+      profileForm,
+      {
+        onSuccess: () => {
+          toast.success(
+            "Business profile updated"
+          );
+
+          setEditingProfile(false);
+        },
+
+        onError: (error) =>
+          toast.error(
+            error.message
+          ),
+      }
+    );
+  };
+
+  const startEditingProduct = (
+    product: MerchantProduct
+  ) => {
+    setEditingProduct(product);
+
+    setEditProductForm({
+      name: product.name,
+      description:
+        product.description,
+      priceKes: String(
+        product.priceKes
+      ),
+      category:
+        product.category,
+      imageUrl:
+        product.imageUrl,
+      stock: String(
+        product.stock
+      ),
+      county:
+        product.county ??
+        merchant.county,
     });
+  };
+
+  const cancelEditingProduct = () => {
+    setEditingProduct(null);
+
+    setEditProductForm({
+      name: "",
+      description: "",
+      priceKes: "",
+      category: "",
+      imageUrl: "",
+      stock: "",
+      county: "",
+    });
+  };
+
+  const toProductInput = (
+    form: ProductFormState
+  ): MerchantProductInput | null => {
+    if (
+      !form.name.trim() ||
+      !form.description.trim() ||
+      !form.category.trim() ||
+      !form.imageUrl.trim() ||
+      !form.county.trim()
+    ) {
+      toast.error(
+        "Complete all product fields before saving"
+      );
+      return null;
+    }
+
+    const priceKes =
+      Number(form.priceKes);
+
+    const stock =
+      Number(form.stock);
+
+    if (
+      !Number.isFinite(priceKes) ||
+      priceKes < 0
+    ) {
+      toast.error(
+        "Enter a valid product price"
+      );
+      return null;
+    }
+
+    if (
+      !Number.isInteger(stock) ||
+      stock < 0
+    ) {
+      toast.error(
+        "Stock must be a non-negative whole number"
+      );
+      return null;
+    }
+
+    return {
+      name: form.name.trim(),
+      description:
+        form.description.trim(),
+      priceKes,
+      category:
+        form.category.trim(),
+      imageUrl:
+        form.imageUrl.trim(),
+      stock,
+      county:
+        form.county.trim(),
+    };
+  };
+
+  const createNewProduct = () => {
+    const data =
+      toProductInput(newProduct);
+
+    if (!data) {
+      return;
+    }
+
+    createProduct.mutate(
+      data,
+      {
+        onSuccess: () => {
+          toast.success(
+            "Product submitted for review"
+          );
+
+          setShowProductForm(false);
+
+          setNewProduct({
+            name: "",
+            description: "",
+            priceKes: "",
+            category: "",
+            imageUrl: "",
+            stock: "",
+            county:
+              merchant.county,
+          });
+        },
+
+        onError: (error) =>
+          toast.error(
+            error.message
+          ),
+      }
+    );
+  };
+
+  const saveProduct = () => {
+    if (!editingProduct) {
+      return;
+    }
+
+    const data =
+      toProductInput(
+        editProductForm
+      );
+
+    if (!data) {
+      return;
+    }
+
+    updateProduct.mutate(
+      {
+        id: editingProduct.id,
+        data,
+      },
+      {
+        onSuccess: () => {
+          toast.success(
+            "Product updated and submitted for review"
+          );
+
+          if (
+            selectedProduct ===
+            editingProduct.id
+          ) {
+            setSelectedProduct(
+              null
+            );
+          }
+
+          cancelEditingProduct();
+        },
+
+        onError: (error) =>
+          toast.error(
+            error.message
+          ),
+      }
+    );
   };
 
   return (
@@ -563,8 +850,8 @@ function ApprovedMerchant({
           </h1>
 
           <p className="text-muted-foreground mt-2">
-            Manage your business profile, catalogue,
-            and promotions.
+            Manage your business profile,
+            catalogue, and promotions.
           </p>
         </div>
 
@@ -606,7 +893,9 @@ function ApprovedMerchant({
           <CardContent className="space-y-5">
             <MerchantProfileForm
               form={profileForm}
-              onChange={updateProfileField}
+              onChange={
+                updateProfileField
+              }
             />
 
             <div className="flex flex-wrap gap-2">
@@ -631,12 +920,15 @@ function ApprovedMerchant({
                     name: merchant.name,
                     email: merchant.email,
                     phone: merchant.phone,
-                    county: merchant.county,
+                    county:
+                      merchant.county,
                     description:
                       merchant.description,
                   });
 
-                  setEditingProfile(false);
+                  setEditingProfile(
+                    false
+                  );
                 }}
               >
                 Cancel
@@ -644,8 +936,9 @@ function ApprovedMerchant({
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Updating business information does not
-              change your approved merchant status.
+              Updating business information
+              does not change your approved
+              merchant status.
             </p>
           </CardContent>
         </Card>
@@ -664,7 +957,8 @@ function ApprovedMerchant({
           value={
             promotions.filter(
               (promotion: any) =>
-                promotion.status === "active"
+                promotion.status ===
+                "active"
             ).length
           }
         />
@@ -679,7 +973,9 @@ function ApprovedMerchant({
       <Card className="mb-8">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Your catalogue</span>
+            <span>
+              Your catalogue
+            </span>
 
             <Button
               size="sm"
@@ -688,11 +984,17 @@ function ApprovedMerchant({
                   ? "outline"
                   : "default"
               }
-              onClick={() =>
+              onClick={() => {
                 setShowProductForm(
                   !showProductForm
-                )
-              }
+                );
+
+                if (
+                  !showProductForm
+                ) {
+                  cancelEditingProduct();
+                }
+              }}
             >
               {showProductForm
                 ? "Close"
@@ -704,130 +1006,31 @@ function ApprovedMerchant({
         <CardContent>
           {showProductForm && (
             <div className="rounded-xl bg-muted/40 border p-4 mb-6 space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field
-                  label="Product name"
-                  value={newProduct.name}
-                  onChange={(value) =>
-                    updateProductForm(
-                      "name",
-                      value
-                    )
-                  }
-                  placeholder="Handmade basket"
-                />
-
-                <Field
-                  label="Image URL"
-                  value={newProduct.imageUrl}
-                  onChange={(value) =>
-                    updateProductForm(
-                      "imageUrl",
-                      value
-                    )
-                  }
-                  placeholder="https://..."
-                />
-
-                <Field
-                  label="Price (KES)"
-                  value={newProduct.priceKes}
-                  onChange={(value) =>
-                    updateProductForm(
-                      "priceKes",
-                      value
-                    )
-                  }
-                  placeholder="2500"
-                />
-
-                <Field
-                  label="Stock"
-                  value={newProduct.stock}
-                  onChange={(value) =>
-                    updateProductForm(
-                      "stock",
-                      value
-                    )
-                  }
-                  placeholder="10"
-                />
-
-                <Field
-                  label="Category"
-                  value={newProduct.category}
-                  onChange={(value) =>
-                    updateProductForm(
-                      "category",
-                      value
-                    )
-                  }
-                  placeholder="Crafts"
-                />
-              </div>
-
               <div>
-                <label className="text-sm font-medium">
-                  Description
-                </label>
+                <h3 className="font-semibold">
+                  Add a product
+                </h3>
 
-                <Textarea
-                  className="mt-2"
-                  value={
-                    newProduct.description
-                  }
-                  onChange={(event) =>
-                    updateProductForm(
-                      "description",
-                      event.target.value
-                    )
-                  }
-                  placeholder="Describe the product..."
-                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  New listings are submitted
+                  to SokoKE for review before
+                  appearing on the marketplace.
+                </p>
               </div>
+
+              <ProductForm
+                form={newProduct}
+                onChange={
+                  updateProductForm
+                }
+              />
 
               <Button
                 disabled={
                   createProduct.isPending
                 }
-                onClick={() =>
-                  createProduct.mutate(
-                    {
-                      ...newProduct,
-                      priceKes: Number(
-                        newProduct.priceKes
-                      ),
-                      stock: Number(
-                        newProduct.stock
-                      ),
-                    },
-                    {
-                      onSuccess: () => {
-                        toast.success(
-                          "Product submitted for review"
-                        );
-
-                        setShowProductForm(
-                          false
-                        );
-
-                        setNewProduct({
-                          name: "",
-                          description: "",
-                          priceKes: "",
-                          category: "",
-                          imageUrl: "",
-                          stock: "",
-                          county:
-                            merchant.county,
-                        });
-                      },
-                      onError: (error) =>
-                        toast.error(
-                          error.message
-                        ),
-                    }
-                  )
+                onClick={
+                  createNewProduct
                 }
               >
                 {createProduct.isPending
@@ -838,118 +1041,199 @@ function ApprovedMerchant({
           )}
 
           <div className="grid md:grid-cols-2 gap-4">
-            {products.map((product) => (
-              <div
-                key={product.id}
-                className="text-left rounded-xl border p-4"
-              >
-                <div className="flex gap-3 items-center">
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className="h-14 w-14 rounded-lg object-cover"
-                  />
+            {products.map(
+              (product) => (
+                <div
+                  key={product.id}
+                  className="text-left rounded-xl border p-4"
+                >
+                  <div className="flex gap-3 items-center">
+                    <img
+                      src={
+                        product.imageUrl
+                      }
+                      alt={
+                        product.name
+                      }
+                      className="h-14 w-14 rounded-lg object-cover"
+                    />
 
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold truncate">
-                      {product.name}
-                    </p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold truncate">
+                        {
+                          product.name
+                        }
+                      </p>
 
-                    <p className="text-sm text-muted-foreground">
-                      {formatKes(
-                        product.priceKes
-                      )}{" "}
-                      · {product.stock} in stock
-                    </p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatKes(
+                          product.priceKes
+                        )}{" "}
+                        ·{" "}
+                        {
+                          product.stock
+                        }{" "}
+                        in stock
+                      </p>
+                    </div>
+
+                    <ProductStatusBadge
+                      status={
+                        product.listingStatus
+                      }
+                    />
                   </div>
 
-                  <Badge
-                    variant={
-                      product.listingStatus ===
-                      "approved"
-                        ? "default"
-                        : "secondary"
-                    }
-                  >
-                    {product.listingStatus}
-                  </Badge>
-                </div>
-
-                <div className="flex gap-2 mt-3">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const name =
-                        window.prompt(
-                          "Product name",
-                          product.name
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setShowProductForm(
+                          false
                         );
 
-                      if (name) {
-                        updateProduct.mutate(
-                          {
-                            id: product.id,
-                            data: { name },
-                          },
-                          {
-                            onSuccess: () =>
-                              toast.success(
-                                "Product updated"
-                              ),
-                            onError: (
-                              error
-                            ) =>
-                              toast.error(
-                                error.message
-                              ),
-                          }
-                        );
+                        if (
+                          editingProduct?.id ===
+                          product.id
+                        ) {
+                          cancelEditingProduct();
+                        } else {
+                          startEditingProduct(
+                            product
+                          );
+                        }
+                      }}
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+
+                      {editingProduct?.id ===
+                      product.id
+                        ? "Close editor"
+                        : "Edit product"}
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive"
+                      disabled={
+                        deleteProduct.isPending
                       }
-                    }}
-                  >
-                    Edit name
-                  </Button>
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            "Remove this product?"
+                          )
+                        ) {
+                          deleteProduct.mutate(
+                            product.id,
+                            {
+                              onSuccess:
+                                () => {
+                                  toast.success(
+                                    "Product removed"
+                                  );
 
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive"
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          "Remove this product?"
-                        )
-                      ) {
-                        deleteProduct.mutate(
-                          product.id,
-                          {
-                            onSuccess: () =>
-                              toast.success(
-                                "Product removed"
-                              ),
-                            onError: (
-                              error
-                            ) =>
-                              toast.error(
-                                error.message
-                              ),
+                                  if (
+                                    editingProduct?.id ===
+                                    product.id
+                                  ) {
+                                    cancelEditingProduct();
+                                  }
+
+                                  if (
+                                    selectedProduct ===
+                                    product.id
+                                  ) {
+                                    setSelectedProduct(
+                                      null
+                                    );
+                                  }
+                                },
+
+                              onError:
+                                (
+                                  error
+                                ) =>
+                                  toast.error(
+                                    error.message
+                                  ),
+                            }
+                          );
+                        }
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+
+                  {editingProduct?.id ===
+                    product.id && (
+                    <div className="mt-5 border-t pt-5 space-y-4">
+                      <div>
+                        <h3 className="font-semibold">
+                          Edit product
+                        </h3>
+
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Saving changes sends
+                          this listing back to
+                          SokoKE for review.
+                          It will not appear
+                          publicly until it is
+                          approved again.
+                        </p>
+                      </div>
+
+                      <ProductForm
+                        form={
+                          editProductForm
+                        }
+                        onChange={
+                          updateEditProductField
+                        }
+                      />
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          disabled={
+                            updateProduct.isPending
                           }
-                        );
-                      }
-                    }}
-                  >
-                    Remove
-                  </Button>
+                          onClick={
+                            saveProduct
+                          }
+                        >
+                          {updateProduct.isPending
+                            ? "Saving..."
+                            : "Save and submit for review"}
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={
+                            updateProduct.isPending
+                          }
+                          onClick={
+                            cancelEditingProduct
+                          }
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            )}
           </div>
 
           {products.length === 0 && (
             <p className="text-muted-foreground py-5">
-              Add your first product to start
-              building your catalogue.
+              Add your first product to
+              start building your catalogue.
             </p>
           )}
         </CardContent>
@@ -976,44 +1260,57 @@ function ApprovedMerchant({
                   product.listingStatus ===
                   "approved"
               )
-              .map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() =>
-                    setSelectedProduct(
+              .map(
+                (product) => (
+                  <button
+                    key={
                       product.id
-                    )
-                  }
-                  className={`text-left rounded-xl border p-4 transition-colors ${
-                    selectedProduct ===
-                    product.id
-                      ? "border-primary bg-primary/5"
-                      : "hover:border-primary/40"
-                  }`}
-                >
-                  <div className="flex gap-3 items-center">
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="h-14 w-14 rounded-lg object-cover"
-                    />
+                    }
+                    onClick={() =>
+                      setSelectedProduct(
+                        product.id
+                      )
+                    }
+                    className={`text-left rounded-xl border p-4 transition-colors ${
+                      selectedProduct ===
+                      product.id
+                        ? "border-primary bg-primary/5"
+                        : "hover:border-primary/40"
+                    }`}
+                  >
+                    <div className="flex gap-3 items-center">
+                      <img
+                        src={
+                          product.imageUrl
+                        }
+                        alt={
+                          product.name
+                        }
+                        className="h-14 w-14 rounded-lg object-cover"
+                      />
 
-                    <div className="min-w-0">
-                      <p className="font-semibold truncate">
-                        {product.name}
-                      </p>
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">
+                          {
+                            product.name
+                          }
+                        </p>
 
-                      <p className="text-sm text-muted-foreground">
-                        {formatKes(
-                          product.priceKes
-                        )}{" "}
-                        · {product.stock} in
-                        stock
-                      </p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatKes(
+                            product.priceKes
+                          )}{" "}
+                          ·{" "}
+                          {
+                            product.stock
+                          }{" "}
+                          in stock
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                )
+              )}
           </div>
 
           {products.filter(
@@ -1029,67 +1326,189 @@ function ApprovedMerchant({
 
           {selectedProduct && (
             <div className="mt-6 grid md:grid-cols-3 gap-4">
-              {packages.map((pkg) => (
-                <div
-                  key={pkg.id}
-                  className="border rounded-xl p-4 flex flex-col"
-                >
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-semibold">
-                      {pkg.name}
-                    </h3>
-
-                    <Badge variant="secondary">
-                      {pkg.durationDays} days
-                    </Badge>
-                  </div>
-
-                  <p className="text-sm text-muted-foreground mt-2 flex-1">
-                    {pkg.description}
-                  </p>
-
-                  <p className="text-xl font-bold mt-4">
-                    {formatKes(pkg.priceKes)}
-                  </p>
-
-                  <Button
-                    className="mt-4"
-                    disabled={
-                      checkout.isPending
-                    }
-                    onClick={() =>
-                      checkout.mutate(
-                        {
-                          productId:
-                            selectedProduct,
-                          packageId: pkg.id,
-                        },
-                        {
-                          onSuccess: ({
-                            checkoutUrl,
-                          }) => {
-                            window.location.href =
-                              checkoutUrl;
-                          },
-                          onError: (
-                            error
-                          ) =>
-                            toast.error(
-                              error.message
-                            ),
-                        }
-                      )
-                    }
+              {packages.map(
+                (pkg) => (
+                  <div
+                    key={pkg.id}
+                    className="border rounded-xl p-4 flex flex-col"
                   >
-                    Promote now
-                  </Button>
-                </div>
-              ))}
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-semibold">
+                        {pkg.name}
+                      </h3>
+
+                      <Badge variant="secondary">
+                        {
+                          pkg.durationDays
+                        }{" "}
+                        days
+                      </Badge>
+                    </div>
+
+                    <p className="text-sm text-muted-foreground mt-2 flex-1">
+                      {
+                        pkg.description
+                      }
+                    </p>
+
+                    <p className="text-xl font-bold mt-4">
+                      {formatKes(
+                        pkg.priceKes
+                      )}
+                    </p>
+
+                    <Button
+                      className="mt-4"
+                      disabled={
+                        checkout.isPending
+                      }
+                      onClick={() =>
+                        checkout.mutate(
+                          {
+                            productId:
+                              selectedProduct,
+                            packageId:
+                              pkg.id,
+                          },
+                          {
+                            onSuccess:
+                              ({
+                                checkoutUrl,
+                              }) => {
+                                window.location.href =
+                                  checkoutUrl;
+                              },
+
+                            onError:
+                              (
+                                error
+                              ) =>
+                                toast.error(
+                                  error.message
+                                ),
+                          }
+                        )
+                      }
+                    >
+                      Promote now
+                    </Button>
+                  </div>
+                )
+              )}
             </div>
           )}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function ProductForm({
+  form,
+  onChange,
+}: {
+  form: ProductFormState;
+  onChange: (
+    key: keyof ProductFormState,
+    value: string
+  ) => void;
+}) {
+  return (
+    <>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Field
+          label="Product name"
+          value={form.name}
+          onChange={(value) =>
+            onChange(
+              "name",
+              value
+            )
+          }
+          placeholder="Handmade basket"
+        />
+
+        <Field
+          label="Image URL"
+          value={form.imageUrl}
+          onChange={(value) =>
+            onChange(
+              "imageUrl",
+              value
+            )
+          }
+          placeholder="https://..."
+        />
+
+        <Field
+          label="Price (KES)"
+          value={form.priceKes}
+          onChange={(value) =>
+            onChange(
+              "priceKes",
+              value
+            )
+          }
+          placeholder="2500"
+          type="number"
+        />
+
+        <Field
+          label="Stock"
+          value={form.stock}
+          onChange={(value) =>
+            onChange(
+              "stock",
+              value
+            )
+          }
+          placeholder="10"
+          type="number"
+        />
+
+        <Field
+          label="Category"
+          value={form.category}
+          onChange={(value) =>
+            onChange(
+              "category",
+              value
+            )
+          }
+          placeholder="Crafts"
+        />
+
+        <Field
+          label="County"
+          value={form.county}
+          onChange={(value) =>
+            onChange(
+              "county",
+              value
+            )
+          }
+          placeholder="Nairobi"
+        />
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">
+          Description
+        </label>
+
+        <Textarea
+          className="mt-2"
+          value={form.description}
+          onChange={(event) =>
+            onChange(
+              "description",
+              event.target.value
+            )
+          }
+          placeholder="Describe the product..."
+        />
+      </div>
+    </>
   );
 }
 
@@ -1163,7 +1582,10 @@ function MerchantProfileForm({
           label="Business name"
           value={form.name}
           onChange={(value) =>
-            onChange("name", value)
+            onChange(
+              "name",
+              value
+            )
           }
           placeholder="Business name"
         />
@@ -1172,7 +1594,10 @@ function MerchantProfileForm({
           label="Business email"
           value={form.email}
           onChange={(value) =>
-            onChange("email", value)
+            onChange(
+              "email",
+              value
+            )
           }
           placeholder="you@business.co.ke"
           type="email"
@@ -1182,7 +1607,10 @@ function MerchantProfileForm({
           label="Phone number"
           value={form.phone}
           onChange={(value) =>
-            onChange("phone", value)
+            onChange(
+              "phone",
+              value
+            )
           }
           placeholder="+254 7..."
         />
@@ -1191,7 +1619,10 @@ function MerchantProfileForm({
           label="County"
           value={form.county}
           onChange={(value) =>
-            onChange("county", value)
+            onChange(
+              "county",
+              value
+            )
           }
           placeholder="Nairobi"
         />
@@ -1199,7 +1630,7 @@ function MerchantProfileForm({
 
       <div>
         <label className="text-sm font-medium">
-          Business description
+          Tell us about your shop
         </label>
 
         <Textarea
@@ -1211,10 +1642,72 @@ function MerchantProfileForm({
               event.target.value
             )
           }
-          placeholder="Tell us about your business"
+          placeholder="What do you sell and what makes your business special?"
         />
       </div>
     </>
+  );
+}
+
+function ProductStatusBadge({
+  status,
+}: {
+  status: MerchantProduct["listingStatus"];
+}) {
+  if (status === "approved") {
+    return (
+      <Badge>
+        Approved
+      </Badge>
+    );
+  }
+
+  if (status === "rejected") {
+    return (
+      <Badge variant="destructive">
+        Rejected
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="secondary">
+      <Clock3 className="mr-1 h-3 w-3" />
+      Pending
+    </Badge>
+  );
+}
+
+function MerchantStatus({
+  status,
+}: {
+  status: MarketplaceMe["merchant"] extends infer _T
+    ? "pending" | "approved" | "rejected"
+    : never;
+}) {
+  if (status === "approved") {
+    return (
+      <Badge>
+        <CheckCircle2 className="mr-1 h-3 w-3" />
+        Approved
+      </Badge>
+    );
+  }
+
+  if (status === "rejected") {
+    return (
+      <Badge variant="destructive">
+        <XCircle className="mr-1 h-3 w-3" />
+        Rejected
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="secondary">
+      <Clock3 className="mr-1 h-3 w-3" />
+      Pending
+    </Badge>
   );
 }
 
@@ -1227,41 +1720,82 @@ function ProfileItem({
 }) {
   return (
     <div>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
 
-      <p className="mt-1 text-sm">
+      <p className="mt-1">
         {value}
       </p>
     </div>
   );
 }
 
-function MerchantStatus({
-  status,
+function Stat({
+  icon,
+  label,
+  value,
 }: {
-  status: string;
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
 }) {
   return (
-    <Badge
-      variant={
-        status === "approved"
-          ? "default"
-          : status === "rejected"
-            ? "destructive"
-            : "secondary"
-      }
-    >
-      {status === "pending" && (
-        <Clock3 className="h-3 w-3 mr-1" />
-      )}
+    <Card>
+      <CardContent className="p-5 flex items-center gap-4">
+        <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+          {icon}
+        </div>
 
-      {status}
-    </Badge>
+        <div>
+          <p className="text-sm text-muted-foreground">
+            {label}
+          </p>
+
+          <p className="font-semibold">
+            {value}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (
+    value: string
+  ) => void;
+  placeholder?: string;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="text-sm font-medium">
+        {label}
+      </label>
+
+      <Input
+        className="mt-2"
+        type={type}
+        value={value}
+        onChange={(event) =>
+          onChange(
+            event.target.value
+          )
+        }
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
 export function PromotionSuccess() {
   const params =
     new URLSearchParams(useSearch());
@@ -1343,67 +1877,5 @@ export function PromotionSuccess() {
         )}
       </div>
     </PortalShell>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  type?: string;
-}) {
-  return (
-    <div>
-      <label className="text-sm font-medium">
-        {label}
-      </label>
-
-      <Input
-        type={type}
-        value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
-        placeholder={placeholder}
-        className="mt-2"
-      />
-    </div>
-  );
-}
-
-function Stat({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <Card>
-      <CardContent className="p-5 flex items-center gap-4">
-        <span className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-          {icon}
-        </span>
-
-        <div>
-          <p className="text-sm text-muted-foreground">
-            {label}
-          </p>
-
-          <p className="text-xl font-bold">
-            {value}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }

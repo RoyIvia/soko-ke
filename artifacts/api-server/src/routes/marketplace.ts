@@ -8,7 +8,11 @@ import {
   promotionCampaignsTable,
   usersTable,
 } from "@workspace/db";
-import { requireAuth, requireRole, ensureUser } from "../lib/auth";
+import {
+  requireAuth,
+  requireRole,
+  ensureUser,
+} from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -16,7 +20,9 @@ function getStripe(): Stripe {
   const secretKey = process.env.STRIPE_SECRET_KEY;
 
   if (!secretKey) {
-    throw new Error("STRIPE_SECRET_KEY is not configured");
+    throw new Error(
+      "STRIPE_SECRET_KEY is not configured"
+    );
   }
 
   return new Stripe(secretKey);
@@ -28,14 +34,16 @@ const promotionPackages = [
     name: "Boost",
     durationDays: 7,
     priceKes: 1500,
-    description: "Move your product higher in category results.",
+    description:
+      "Move your product higher in category results.",
   },
   {
     id: "spotlight",
     name: "Spotlight",
     durationDays: 14,
     priceKes: 3500,
-    description: "Stand out with a sponsored badge and priority placement.",
+    description:
+      "Stand out with a sponsored badge and priority placement.",
   },
   {
     id: "homepage",
@@ -64,7 +72,11 @@ function getMerchantProfileUpdate(body: unknown) {
   const update: Partial<
     Pick<
       typeof merchantsTable.$inferInsert,
-      "name" | "email" | "phone" | "county" | "description"
+      | "name"
+      | "email"
+      | "phone"
+      | "county"
+      | "description"
     >
   > = {};
 
@@ -72,7 +84,10 @@ function getMerchantProfileUpdate(body: unknown) {
     const value = source[field];
 
     if (value !== undefined) {
-      if (typeof value !== "string" || !value.trim()) {
+      if (
+        typeof value !== "string" ||
+        !value.trim()
+      ) {
         return {
           error: `${field} must be a non-empty string`,
           update: null,
@@ -85,7 +100,8 @@ function getMerchantProfileUpdate(body: unknown) {
 
   if (Object.keys(update).length === 0) {
     return {
-      error: "At least one merchant profile field is required",
+      error:
+        "At least one merchant profile field is required",
       update: null,
     };
   }
@@ -96,45 +112,146 @@ function getMerchantProfileUpdate(body: unknown) {
   };
 }
 
-router.get("/me", async (req, res): Promise<void> => {
-  const user = await ensureUser(req);
+function getMerchantProductUpdate(body: unknown) {
+  const source =
+    body && typeof body === "object"
+      ? (body as Record<string, unknown>)
+      : {};
 
-  if (!user) {
-    res.json({ signedIn: false, role: "customer" });
-    return;
+  const requiredTextFields = [
+    "name",
+    "description",
+    "category",
+    "imageUrl",
+    "county",
+  ] as const;
+
+  for (const field of requiredTextFields) {
+    const value = source[field];
+
+    if (
+      typeof value !== "string" ||
+      !value.trim()
+    ) {
+      return {
+        error: `${field} must be a non-empty string`,
+        update: null,
+      };
+    }
   }
 
-  const merchant = user.merchantId
-    ? (
-        await db
-          .select()
-          .from(merchantsTable)
-          .where(eq(merchantsTable.id, user.merchantId))
-      )[0]
-    : null;
+  const priceKes = Number(source.priceKes);
+  const stock = Number(source.stock);
 
-  res.json({
-    signedIn: true,
-    clerkUserId: user.clerkUserId,
-    role: user.role,
-    merchant: merchant ? formatMerchant(merchant) : null,
-  });
-});
+  if (
+    !Number.isFinite(priceKes) ||
+    priceKes < 0
+  ) {
+    return {
+      error:
+        "priceKes must be a non-negative number",
+      update: null,
+    };
+  }
+
+  if (
+    !Number.isInteger(stock) ||
+    stock < 0
+  ) {
+    return {
+      error:
+        "stock must be a non-negative whole number",
+      update: null,
+    };
+  }
+
+  return {
+    error: null,
+    update: {
+      name: String(source.name).trim(),
+      description: String(
+        source.description
+      ).trim(),
+      priceKes: String(priceKes),
+      category: String(source.category).trim(),
+      imageUrl: String(source.imageUrl).trim(),
+      stock,
+      county: String(source.county).trim(),
+    },
+  };
+}
+
+router.get(
+  "/me",
+  async (req, res): Promise<void> => {
+    const user = await ensureUser(req);
+
+    if (!user) {
+      res.json({
+        signedIn: false,
+        role: "customer",
+        merchant: null,
+      });
+      return;
+    }
+
+    const merchant = user.merchantId
+      ? (
+          await db
+            .select()
+            .from(merchantsTable)
+            .where(
+              eq(
+                merchantsTable.id,
+                user.merchantId
+              )
+            )
+        )[0]
+      : null;
+
+    res.json({
+      signedIn: true,
+      clerkUserId: user.clerkUserId,
+      role: user.role,
+      merchant: merchant
+        ? formatMerchant(merchant)
+        : null,
+    });
+  }
+);
 
 router.post(
   "/merchants/apply",
   requireAuth,
   async (req, res): Promise<void> => {
-    const user = res.locals.user as typeof usersTable.$inferSelect;
-    const { name, email, phone, county, description } = req.body ?? {};
+    const user =
+      res.locals
+        .user as typeof usersTable.$inferSelect;
+
+    const {
+      name,
+      email,
+      phone,
+      county,
+      description,
+    } = req.body ?? {};
 
     if (
-      ![name, email, phone, county, description].every(
-        (value) => typeof value === "string" && value.trim(),
+      ![
+        name,
+        email,
+        phone,
+        county,
+        description,
+      ].every(
+        (value) =>
+          typeof value === "string" &&
+          value.trim()
       )
     ) {
       res.status(400).json({
-        error: "Name, email, phone, county, and description are required",
+        error:
+          "Name, email, phone, county, and description are required",
       });
       return;
     }
@@ -142,11 +259,17 @@ router.post(
     const current = await db
       .select()
       .from(merchantsTable)
-      .where(eq(merchantsTable.ownerClerkId, user.clerkUserId));
+      .where(
+        eq(
+          merchantsTable.ownerClerkId,
+          user.clerkUserId
+        )
+      );
 
     if (current[0]) {
       res.status(409).json({
-        error: "You already have a merchant application",
+        error:
+          "You already have a merchant application",
         merchant: formatMerchant(current[0]),
       });
       return;
@@ -155,7 +278,9 @@ router.post(
     const slug = `${name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")}-${Date.now().toString(36)}`;
+      .replace(/^-|-$/g, "")}-${Date.now().toString(
+      36
+    )}`;
 
     const [merchant] = await db
       .insert(merchantsTable)
@@ -172,34 +297,34 @@ router.post(
 
     await db
       .update(usersTable)
-      .set({ merchantId: merchant.id })
-      .where(eq(usersTable.clerkUserId, user.clerkUserId));
+      .set({
+        merchantId: merchant.id,
+      })
+      .where(
+        eq(
+          usersTable.clerkUserId,
+          user.clerkUserId
+        )
+      );
 
-    res.status(201).json(formatMerchant(merchant));
-  },
+    res
+      .status(201)
+      .json(formatMerchant(merchant));
+  }
 );
 
-/**
- * Allow the owner of a merchant application/profile to edit the business
- * information associated with that merchant.
- *
- * A rejected application is automatically returned to "pending" when the
- * owner edits and resubmits it.
- *
- * An approved merchant remains approved when editing profile information.
- *
- * Status, ownership, approval timestamps, and authorization fields are never
- * accepted from the client through this endpoint.
- */
 router.patch(
   "/merchant/profile",
   requireAuth,
   async (req, res): Promise<void> => {
-    const user = res.locals.user as typeof usersTable.$inferSelect;
+    const user =
+      res.locals
+        .user as typeof usersTable.$inferSelect;
 
     if (!user.merchantId) {
       res.status(404).json({
-        error: "Merchant application not found",
+        error:
+          "Merchant application not found",
       });
       return;
     }
@@ -209,26 +334,35 @@ router.patch(
       .from(merchantsTable)
       .where(
         and(
-          eq(merchantsTable.id, user.merchantId),
-          eq(merchantsTable.ownerClerkId, user.clerkUserId),
-        ),
+          eq(
+            merchantsTable.id,
+            user.merchantId
+          ),
+          eq(
+            merchantsTable.ownerClerkId,
+            user.clerkUserId
+          )
+        )
       );
 
     if (!current) {
       res.status(404).json({
-        error: "Merchant application not found",
+        error:
+          "Merchant application not found",
       });
       return;
     }
 
-    const { update, error } = getMerchantProfileUpdate(req.body);
+    const { update, error } =
+      getMerchantProfileUpdate(req.body);
 
     if (!update) {
       res.status(400).json({ error });
       return;
     }
 
-    const resubmitting = current.status === "rejected";
+    const resubmitting =
+      current.status === "rejected";
 
     const [merchant] = await db
       .update(merchantsTable)
@@ -241,18 +375,27 @@ router.patch(
             }
           : {}),
       })
-      .where(eq(merchantsTable.id, current.id))
+      .where(
+        eq(merchantsTable.id, current.id)
+      )
       .returning();
 
     if (resubmitting) {
       await db
         .update(usersTable)
-        .set({ role: "customer" })
-        .where(eq(usersTable.clerkUserId, user.clerkUserId));
+        .set({
+          role: "customer",
+        })
+        .where(
+          eq(
+            usersTable.clerkUserId,
+            user.clerkUserId
+          )
+        );
     }
 
     res.json(formatMerchant(merchant));
-  },
+  }
 );
 
 router.get(
@@ -262,30 +405,35 @@ router.get(
     const merchants = await db
       .select()
       .from(merchantsTable)
-      .orderBy(desc(merchantsTable.createdAt));
+      .orderBy(
+        desc(merchantsTable.createdAt)
+      );
 
-    res.json(merchants.map(formatMerchant));
-  },
+    res.json(
+      merchants.map(formatMerchant)
+    );
+  }
 );
 
-/**
- * Allow a platform administrator to edit merchant business information
- * independently of approval status.
- */
 router.patch(
   "/merchants/:id",
   requireRole("platform_admin"),
   async (req, res): Promise<void> => {
     const id = Number(req.params.id);
 
-    if (!Number.isInteger(id) || id <= 0) {
+    if (
+      !Number.isInteger(id) ||
+      id <= 0
+    ) {
       res.status(400).json({
-        error: "A valid merchant ID is required",
+        error:
+          "A valid merchant ID is required",
       });
       return;
     }
 
-    const { update, error } = getMerchantProfileUpdate(req.body);
+    const { update, error } =
+      getMerchantProfileUpdate(req.body);
 
     if (!update) {
       res.status(400).json({ error });
@@ -295,18 +443,21 @@ router.patch(
     const [merchant] = await db
       .update(merchantsTable)
       .set(update)
-      .where(eq(merchantsTable.id, id))
+      .where(
+        eq(merchantsTable.id, id)
+      )
       .returning();
 
     if (!merchant) {
       res.status(404).json({
-        error: "Merchant application not found",
+        error:
+          "Merchant application not found",
       });
       return;
     }
 
     res.json(formatMerchant(merchant));
-  },
+  }
 );
 
 router.patch(
@@ -315,18 +466,29 @@ router.patch(
   async (req, res): Promise<void> => {
     const status = req.body?.status;
 
-    if (!["approved", "rejected", "pending"].includes(status)) {
+    if (
+      ![
+        "approved",
+        "rejected",
+        "pending",
+      ].includes(status)
+    ) {
       res.status(400).json({
-        error: "Status must be pending, approved, or rejected",
+        error:
+          "Status must be pending, approved, or rejected",
       });
       return;
     }
 
     const id = Number(req.params.id);
 
-    if (!Number.isInteger(id) || id <= 0) {
+    if (
+      !Number.isInteger(id) ||
+      id <= 0
+    ) {
       res.status(400).json({
-        error: "A valid merchant ID is required",
+        error:
+          "A valid merchant ID is required",
       });
       return;
     }
@@ -335,14 +497,20 @@ router.patch(
       .update(merchantsTable)
       .set({
         status,
-        approvedAt: status === "approved" ? new Date() : null,
+        approvedAt:
+          status === "approved"
+            ? new Date()
+            : null,
       })
-      .where(eq(merchantsTable.id, id))
+      .where(
+        eq(merchantsTable.id, id)
+      )
       .returning();
 
     if (!merchant) {
       res.status(404).json({
-        error: "Merchant application not found",
+        error:
+          "Merchant application not found",
       });
       return;
     }
@@ -350,12 +518,17 @@ router.patch(
     await db
       .update(usersTable)
       .set({
-        role: status === "approved" ? "merchant" : "customer",
+        role:
+          status === "approved"
+            ? "merchant"
+            : "customer",
       })
-      .where(eq(usersTable.merchantId, id));
+      .where(
+        eq(usersTable.merchantId, id)
+      );
 
     res.json(formatMerchant(merchant));
-  },
+  }
 );
 
 router.get(
@@ -365,10 +538,14 @@ router.get(
     const products = await db
       .select()
       .from(productsTable)
-      .orderBy(desc(productsTable.createdAt));
+      .orderBy(
+        desc(productsTable.createdAt)
+      );
 
-    res.json(products.map(formatProduct));
-  },
+    res.json(
+      products.map(formatProduct)
+    );
+  }
 );
 
 router.patch(
@@ -376,64 +553,139 @@ router.patch(
   requireRole("platform_admin"),
   async (req, res): Promise<void> => {
     const status = req.body?.status;
+    const productId = Number(
+      req.params.id
+    );
 
-    if (!["pending", "approved", "rejected"].includes(status)) {
+    if (
+      ![
+        "pending",
+        "approved",
+        "rejected",
+      ].includes(status)
+    ) {
       res.status(400).json({
-        error: "Status must be pending, approved, or rejected",
+        error:
+          "Status must be pending, approved, or rejected",
+      });
+      return;
+    }
+
+    if (
+      !Number.isInteger(productId) ||
+      productId <= 0
+    ) {
+      res.status(400).json({
+        error:
+          "A valid product ID is required",
       });
       return;
     }
 
     const [product] = await db
       .update(productsTable)
-      .set({ listingStatus: status })
-      .where(eq(productsTable.id, Number(req.params.id)))
+      .set({
+        listingStatus: status,
+      })
+      .where(
+        eq(productsTable.id, productId)
+      )
       .returning();
 
     if (!product) {
-      res.status(404).json({ error: "Product not found" });
+      res.status(404).json({
+        error: "Product not found",
+      });
       return;
     }
 
     res.json(formatProduct(product));
-  },
+  }
 );
 
 router.get(
   "/merchant/products",
   requireRole("merchant"),
   async (_req, res): Promise<void> => {
-    const user = res.locals.user as typeof usersTable.$inferSelect;
+    const user =
+      res.locals
+        .user as typeof usersTable.$inferSelect;
 
     const products = await db
       .select()
       .from(productsTable)
-      .where(eq(productsTable.merchantId, user.merchantId!))
-      .orderBy(desc(productsTable.createdAt));
+      .where(
+        eq(
+          productsTable.merchantId,
+          user.merchantId!
+        )
+      )
+      .orderBy(
+        desc(productsTable.createdAt)
+      );
 
-    res.json(products.map(formatProduct));
-  },
+    res.json(
+      products.map(formatProduct)
+    );
+  }
 );
 
 router.post(
   "/merchant/products",
   requireRole("merchant"),
   async (req, res): Promise<void> => {
-    const user = res.locals.user as typeof usersTable.$inferSelect;
-    const { name, description, priceKes, category, imageUrl, stock, county } =
-      req.body ?? {};
+    const user =
+      res.locals
+        .user as typeof usersTable.$inferSelect;
+
+    const {
+      name,
+      description,
+      priceKes,
+      category,
+      imageUrl,
+      stock,
+      county,
+    } = req.body ?? {};
 
     if (
-      !name ||
-      !description ||
-      !category ||
-      !imageUrl ||
-      Number(priceKes) < 0 ||
-      Number(stock) < 0
+      typeof name !== "string" ||
+      !name.trim() ||
+      typeof description !== "string" ||
+      !description.trim() ||
+      typeof category !== "string" ||
+      !category.trim() ||
+      typeof imageUrl !== "string" ||
+      !imageUrl.trim()
     ) {
       res.status(400).json({
         error:
-          "Name, description, category, image URL, price, and stock are required",
+          "Name, description, category, and image URL are required",
+      });
+      return;
+    }
+
+    const numericPrice = Number(priceKes);
+    const numericStock = Number(stock);
+
+    if (
+      !Number.isFinite(numericPrice) ||
+      numericPrice < 0
+    ) {
+      res.status(400).json({
+        error:
+          "Price must be a non-negative number",
+      });
+      return;
+    }
+
+    if (
+      !Number.isInteger(numericStock) ||
+      numericStock < 0
+    ) {
+      res.status(400).json({
+        error:
+          "Stock must be a non-negative whole number",
       });
       return;
     }
@@ -441,19 +693,39 @@ router.post(
     const [merchant] = await db
       .select()
       .from(merchantsTable)
-      .where(eq(merchantsTable.id, user.merchantId!));
+      .where(
+        eq(
+          merchantsTable.id,
+          user.merchantId!
+        )
+      );
+
+    if (
+      !merchant ||
+      merchant.status !== "approved"
+    ) {
+      res.status(403).json({
+        error:
+          "Only approved merchants can create products",
+      });
+      return;
+    }
 
     const [product] = await db
       .insert(productsTable)
       .values({
-        name: String(name).trim(),
-        description: String(description).trim(),
-        priceKes: String(priceKes),
-        category: String(category).trim(),
-        imageUrl: String(imageUrl).trim(),
-        stock: Number(stock),
-        sellerName: merchant?.name ?? null,
-        county: county ? String(county).trim() : merchant?.county ?? null,
+        name: name.trim(),
+        description: description.trim(),
+        priceKes: String(numericPrice),
+        category: category.trim(),
+        imageUrl: imageUrl.trim(),
+        stock: numericStock,
+        sellerName: merchant.name,
+        county:
+          typeof county === "string" &&
+          county.trim()
+            ? county.trim()
+            : merchant.county,
         ownerType: "merchant",
         merchantId: user.merchantId!,
         listingStatus: "pending",
@@ -463,140 +735,228 @@ router.post(
     await db
       .update(merchantsTable)
       .set({
-        productCount: sql`${merchantsTable.productCount} + 1`,
+        productCount: sql`
+          ${merchantsTable.productCount} + 1
+        `,
       })
-      .where(eq(merchantsTable.id, user.merchantId!));
+      .where(
+        eq(
+          merchantsTable.id,
+          user.merchantId!
+        )
+      );
 
-    res.status(201).json(formatProduct(product));
-  },
+    res
+      .status(201)
+      .json(formatProduct(product));
+  }
 );
 
 router.patch(
   "/merchant/products/:id",
   requireRole("merchant"),
   async (req, res): Promise<void> => {
-    const user = res.locals.user as typeof usersTable.$inferSelect;
-    const productId = Number(req.params.id);
+    const user =
+      res.locals
+        .user as typeof usersTable.$inferSelect;
+
+    const productId = Number(
+      req.params.id
+    );
+
+    if (
+      !Number.isInteger(productId) ||
+      productId <= 0
+    ) {
+      res.status(400).json({
+        error:
+          "A valid product ID is required",
+      });
+      return;
+    }
 
     const [owned] = await db
       .select()
       .from(productsTable)
       .where(
         and(
-          eq(productsTable.id, productId),
-          eq(productsTable.merchantId, user.merchantId!),
-        ),
+          eq(
+            productsTable.id,
+            productId
+          ),
+          eq(
+            productsTable.merchantId,
+            user.merchantId!
+          )
+        )
       );
 
     if (!owned) {
-      res.status(404).json({ error: "Product not found" });
+      res.status(404).json({
+        error: "Product not found",
+      });
       return;
     }
 
-    const allowed = [
-      "name",
-      "description",
-      "priceKes",
-      "category",
-      "imageUrl",
-      "stock",
-      "county",
-    ] as const;
+    const { update, error } =
+      getMerchantProductUpdate(req.body);
 
-    const update = Object.fromEntries(
-      allowed
-        .filter((key) => req.body?.[key] !== undefined)
-        .map((key) => [
-          key,
-          key === "priceKes" ? String(req.body[key]) : req.body[key],
-        ]),
-    );
-
+    if (!update) {
+      res.status(400).json({ error });
+      return;
+    }
     const [product] = await db
-      .update(productsTable)
-      .set({
-        ...update,
-        listingStatus:
-          owned.listingStatus === "rejected"
-            ? "pending"
-            : owned.listingStatus,
-      })
-      .where(eq(productsTable.id, productId))
-      .returning();
+     .update(productsTable)
+     .set({
+       ...update,
+       listingStatus: "pending",
+   })
+   .where(
+     and(
+        eq(productsTable.id, productId),
+        eq(productsTable.merchantId, user.merchantId!),
+    ),
+  )
+  .returning();
 
-    res.json(formatProduct(product));
-  },
+res.json(formatProduct(product));
+  }
 );
 
 router.delete(
   "/merchant/products/:id",
   requireRole("merchant"),
   async (req, res): Promise<void> => {
-    const user = res.locals.user as typeof usersTable.$inferSelect;
+    const user =
+      res.locals
+        .user as typeof usersTable.$inferSelect;
+
+    const productId = Number(
+      req.params.id
+    );
+
+    if (
+      !Number.isInteger(productId) ||
+      productId <= 0
+    ) {
+      res.status(400).json({
+        error:
+          "A valid product ID is required",
+      });
+      return;
+    }
 
     const [deleted] = await db
       .delete(productsTable)
       .where(
         and(
-          eq(productsTable.id, Number(req.params.id)),
-          eq(productsTable.merchantId, user.merchantId!),
-        ),
+          eq(
+            productsTable.id,
+            productId
+          ),
+          eq(
+            productsTable.merchantId,
+            user.merchantId!
+          )
+        )
       )
       .returning();
 
     if (!deleted) {
-      res.status(404).json({ error: "Product not found" });
+      res.status(404).json({
+        error: "Product not found",
+      });
       return;
     }
 
     await db
       .update(merchantsTable)
       .set({
-        productCount: sql`greatest(${merchantsTable.productCount} - 1, 0)`,
+        productCount: sql`
+          greatest(
+            ${merchantsTable.productCount} - 1,
+            0
+          )
+        `,
       })
-      .where(eq(merchantsTable.id, user.merchantId!));
+      .where(
+        eq(
+          merchantsTable.id,
+          user.merchantId!
+        )
+      );
 
     res.sendStatus(204);
-  },
+  }
 );
 
-router.get("/promotions/packages", (_req, res) => {
-  res.json(promotionPackages);
-});
+router.get(
+  "/promotions/packages",
+  (_req, res) => {
+    res.json(promotionPackages);
+  }
+);
 
 router.get(
   "/promotions",
   requireAuth,
   async (_req, res): Promise<void> => {
-    const user = res.locals.user as typeof usersTable.$inferSelect;
+    const user =
+      res.locals
+        .user as typeof usersTable.$inferSelect;
 
     const conditions =
       user.role === "platform_admin"
         ? undefined
-        : eq(promotionCampaignsTable.merchantId, user.merchantId!);
+        : eq(
+            promotionCampaignsTable.merchantId,
+            user.merchantId!
+          );
 
     const campaigns = await db
       .select()
       .from(promotionCampaignsTable)
       .where(conditions)
-      .orderBy(desc(promotionCampaignsTable.createdAt));
+      .orderBy(
+        desc(
+          promotionCampaignsTable.createdAt
+        )
+      );
 
-    res.json(campaigns.map(formatPromotion));
-  },
+    res.json(
+      campaigns.map(formatPromotion)
+    );
+  }
 );
 
 router.post(
   "/promotions/checkout",
   requireRole("merchant"),
   async (req, res): Promise<void> => {
-    const user = res.locals.user as typeof usersTable.$inferSelect;
-    const { productId, packageId } = req.body ?? {};
+    const user =
+      res.locals
+        .user as typeof usersTable.$inferSelect;
 
-    const pkg = promotionPackages.find((item) => item.id === packageId);
+    const {
+      productId,
+      packageId,
+    } = req.body ?? {};
 
-    if (!pkg || !Number.isInteger(Number(productId))) {
+    const pkg =
+      promotionPackages.find(
+        (item) =>
+          item.id === packageId
+      );
+
+    if (
+      !pkg ||
+      !Number.isInteger(
+        Number(productId)
+      )
+    ) {
       res.status(400).json({
-        error: "A valid product and promotion package are required",
+        error:
+          "A valid product and promotion package are required",
       });
       return;
     }
@@ -606,62 +966,72 @@ router.post(
       .from(productsTable)
       .where(
         and(
-          eq(productsTable.id, Number(productId)),
-          eq(productsTable.merchantId, user.merchantId!),
-          eq(productsTable.listingStatus, "approved"),
-        ),
+          eq(
+            productsTable.id,
+            Number(productId)
+          ),
+          eq(
+            productsTable.merchantId,
+            user.merchantId!
+          ),
+          eq(
+            productsTable.listingStatus,
+            "approved"
+          )
+        )
       );
 
     if (!product) {
       res.status(404).json({
-        error: "Only your approved products can be promoted",
+        error:
+          "Only your approved products can be promoted",
       });
       return;
     }
 
-    const origin = `${req.protocol}://${req.get("host")}`;
+    const stripe = getStripe();
 
-    let stripeSession: Stripe.Checkout.Session;
+    const baseUrl =
+      process.env.PUBLIC_APP_URL ??
+      `${req.protocol}://${req.get("host")}`;
 
-    try {
-      const stripe = getStripe();
-
-      stripeSession = await stripe.checkout.sessions.create({
+    const session =
+      await stripe.checkout.sessions.create({
         mode: "payment",
         line_items: [
           {
+            quantity: 1,
             price_data: {
               currency: "kes",
+              unit_amount:
+                pkg.priceKes * 100,
               product_data: {
-                name: `${pkg.name}: ${product.name}`,
-                description: pkg.description,
+                name: `SokoKE ${pkg.name}`,
+                description:
+                  pkg.description,
               },
-              unit_amount: pkg.priceKes * 100,
             },
-            quantity: 1,
           },
         ],
-        success_url: `${origin}/promote/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/merchant/promotions?cancelled=1`,
+        success_url:
+          `${baseUrl}/merchant?promotion=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url:
+          `${baseUrl}/merchant?promotion=cancelled`,
         metadata: {
-          productId: String(product.id),
-          merchantId: String(user.merchantId),
+          merchantId: String(
+            user.merchantId!
+          ),
+          productId: String(
+            product.id
+          ),
           packageId: pkg.id,
         },
       });
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Stripe could not create checkout";
 
-      res.status(502).json({ error: message });
-      return;
-    }
-
-    if (!stripeSession.url) {
+    if (!session.url) {
       res.status(502).json({
-        error: "Stripe could not create checkout",
+        error:
+          "Stripe did not return a checkout URL",
       });
       return;
     }
@@ -673,85 +1043,142 @@ router.post(
         productId: product.id,
         tier: pkg.id,
         status: "pending_payment",
-        amountKes: String(pkg.priceKes),
-        stripeCheckoutSessionId: stripeSession.id,
+        amountKes: String(
+          pkg.priceKes
+        ),
+        stripeCheckoutSessionId:
+          session.id,
       })
       .returning();
 
     res.status(201).json({
-      checkoutUrl: stripeSession.url,
-      campaign: formatPromotion(campaign),
+      checkoutUrl: session.url,
+      campaign:
+        formatPromotion(campaign),
     });
-  },
+  }
 );
 
 router.get(
   "/promotions/confirm",
   requireAuth,
   async (req, res): Promise<void> => {
-    const sessionId = String(req.query.session_id ?? "");
+    const sessionId = String(
+      req.query.session_id ?? ""
+    );
 
     if (!sessionId) {
-      res.status(400).json({ error: "Missing checkout session" });
-      return;
-    }
-
-    let session: Stripe.Checkout.Session;
-
-    try {
-      const stripe = getStripe();
-      session = await stripe.checkout.sessions.retrieve(sessionId);
-    } catch {
-      res.status(402).json({
-        error: "Payment has not been confirmed",
+      res.status(400).json({
+        error:
+          "Missing checkout session",
       });
       return;
     }
 
-    if (session.id !== sessionId || session.payment_status !== "paid") {
+    const stripe = getStripe();
+
+    const session =
+      await stripe.checkout.sessions.retrieve(
+        sessionId
+      );
+
+    if (
+      session.id !== sessionId ||
+      session.payment_status !== "paid"
+    ) {
       res.status(402).json({
-        error: "Payment has not been confirmed",
+        error:
+          "Payment has not been confirmed",
       });
       return;
     }
 
-    const user = res.locals.user as typeof usersTable.$inferSelect;
+    const user =
+      res.locals
+        .user as typeof usersTable.$inferSelect;
 
     const [campaign] = await db
       .select()
       .from(promotionCampaignsTable)
       .where(
         eq(
-          promotionCampaignsTable.stripeCheckoutSessionId,
-          sessionId,
-        ),
+          promotionCampaignsTable
+            .stripeCheckoutSessionId,
+          sessionId
+        )
       );
 
     if (
       !campaign ||
       (user.role !== "platform_admin" &&
-        campaign.merchantId !== user.merchantId)
+        campaign.merchantId !==
+          user.merchantId)
     ) {
       res.status(404).json({
-        error: "Promotion campaign not found",
+        error:
+          "Promotion campaign not found",
       });
       return;
     }
 
-    const pkg = promotionPackages.find(
-      (item) => item.id === campaign.tier,
-    );
+    if (campaign.status === "active") {
+      res.json(
+        formatPromotion(campaign)
+      );
+      return;
+    }
+
+    const pkg =
+      promotionPackages.find(
+        (item) =>
+          item.id === campaign.tier
+      );
 
     if (!pkg) {
-      res.status(500).json({
-        error: "Promotion package configuration is invalid",
+      res.status(400).json({
+        error:
+          "Promotion package no longer exists",
+      });
+      return;
+    }
+
+    const [product] = await db
+      .select()
+      .from(productsTable)
+      .where(
+        and(
+          eq(
+            productsTable.id,
+            campaign.productId
+          ),
+          eq(
+            productsTable.merchantId,
+            campaign.merchantId
+          ),
+          eq(
+            productsTable.listingStatus,
+            "approved"
+          )
+        )
+      );
+
+    if (!product) {
+      res.status(409).json({
+        error:
+          "The product is no longer approved for promotion",
       });
       return;
     }
 
     const startsAt = new Date();
+
     const endsAt = new Date(
-      startsAt.getTime() + pkg.durationDays * 86400000,
+      startsAt.getTime() +
+        pkg.durationDays *
+          24 *
+          60 *
+          60 *
+          1000
     );
 
     const [updated] = await db
@@ -761,7 +1188,12 @@ router.get(
         startsAt,
         endsAt,
       })
-      .where(eq(promotionCampaignsTable.id, campaign.id))
+      .where(
+        eq(
+          promotionCampaignsTable.id,
+          campaign.id
+        )
+      )
       .returning();
 
     await db
@@ -772,43 +1204,67 @@ router.get(
         sponsoredUntil: endsAt,
         promotionTier: pkg.id,
       })
-      .where(eq(productsTable.id, campaign.productId));
+      .where(
+        eq(
+          productsTable.id,
+          campaign.productId
+        )
+      );
 
-    res.json(formatPromotion(updated));
-  },
+    res.json(
+      formatPromotion(updated)
+    );
+  }
 );
 
 function formatMerchant(
-  merchant: typeof merchantsTable.$inferSelect,
+  merchant:
+    typeof merchantsTable.$inferSelect
 ) {
   return {
     ...merchant,
-    createdAt: merchant.createdAt.toISOString(),
-    approvedAt: merchant.approvedAt?.toISOString() ?? null,
+    createdAt:
+      merchant.createdAt.toISOString(),
+    approvedAt:
+      merchant.approvedAt?.toISOString() ??
+      null,
   };
 }
 
 function formatProduct(
-  product: typeof productsTable.$inferSelect,
+  product:
+    typeof productsTable.$inferSelect
 ) {
   return {
     ...product,
-    priceKes: Number(product.priceKes),
-    rating: Number(product.rating),
-    createdAt: product.createdAt.toISOString(),
-    sponsoredUntil: product.sponsoredUntil?.toISOString() ?? null,
+    priceKes:
+      Number(product.priceKes),
+    rating:
+      Number(product.rating),
+    createdAt:
+      product.createdAt.toISOString(),
+    sponsoredUntil:
+      product.sponsoredUntil?.toISOString() ??
+      null,
   };
 }
 
 function formatPromotion(
-  campaign: typeof promotionCampaignsTable.$inferSelect,
+  campaign:
+    typeof promotionCampaignsTable.$inferSelect
 ) {
   return {
     ...campaign,
-    amountKes: Number(campaign.amountKes),
-    createdAt: campaign.createdAt.toISOString(),
-    startsAt: campaign.startsAt?.toISOString() ?? null,
-    endsAt: campaign.endsAt?.toISOString() ?? null,
+    amountKes:
+      Number(campaign.amountKes),
+    createdAt:
+      campaign.createdAt.toISOString(),
+    startsAt:
+      campaign.startsAt?.toISOString() ??
+      null,
+    endsAt:
+      campaign.endsAt?.toISOString() ??
+      null,
   };
 }
 
