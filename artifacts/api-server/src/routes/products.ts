@@ -2,7 +2,8 @@ import { Router, type IRouter } from "express";
 import {
   and,
   eq,
-  like,
+  ilike,
+  or,
   gte,
   lte,
   desc,
@@ -39,8 +40,7 @@ const router: IRouter = Router();
 router.get(
   "/products",
   async (req, res): Promise<void> => {
-    const parsed =
-      ListProductsQueryParams.safeParse(req.query);
+    const parsed = ListProductsQueryParams.safeParse(req.query);
 
     if (!parsed.success) {
       res.status(400).json({
@@ -59,34 +59,54 @@ router.get(
       offset = 0,
     } = parsed.data;
 
+    /*
+     * Public catalogue queries must only expose products
+     * that have been approved by the platform.
+     */
     const conditions = [
-      eq(
-        productsTable.listingStatus,
-        "approved"
-      ),
+      eq(productsTable.listingStatus, "approved"),
     ];
 
     if (category) {
       conditions.push(
-        eq(productsTable.category, category)
+        eq(productsTable.category, category),
       );
     }
 
-    if (search) {
-      conditions.push(
-        like(
-          productsTable.name,
-          `%${search}%`
-        )
+    /*
+     * Search is case-insensitive and covers the fields
+     * customers are most likely to search by.
+     *
+     * Examples:
+     *   "iphone"  -> product name
+     *   "phone"   -> description/category
+     *   "nairobi" -> county
+     *   "acme"    -> seller
+     */
+    const normalizedSearch = search?.trim();
+
+    if (normalizedSearch) {
+      const searchPattern = `%${normalizedSearch}%`;
+
+      const searchCondition = or(
+        ilike(productsTable.name, searchPattern),
+        ilike(productsTable.description, searchPattern),
+        ilike(productsTable.category, searchPattern),
+        ilike(productsTable.sellerName, searchPattern),
+        ilike(productsTable.county, searchPattern),
       );
+
+      if (searchCondition) {
+        conditions.push(searchCondition);
+      }
     }
 
     if (minPrice != null) {
       conditions.push(
         gte(
           productsTable.priceKes,
-          String(minPrice)
-        )
+          String(minPrice),
+        ),
       );
     }
 
@@ -94,13 +114,12 @@ router.get(
       conditions.push(
         lte(
           productsTable.priceKes,
-          String(maxPrice)
-        )
+          String(maxPrice),
+        ),
       );
     }
 
-    const whereCondition =
-      and(...conditions);
+    const whereCondition = and(...conditions);
 
     let query = db
       .select()
@@ -110,19 +129,19 @@ router.get(
 
     if (sort === "price_asc") {
       query = query.orderBy(
-        asc(productsTable.priceKes)
+        asc(productsTable.priceKes),
       );
     } else if (sort === "price_desc") {
       query = query.orderBy(
-        desc(productsTable.priceKes)
+        desc(productsTable.priceKes),
       );
     } else if (sort === "popular") {
       query = query.orderBy(
-        desc(productsTable.reviewCount)
+        desc(productsTable.reviewCount),
       );
     } else {
       query = query.orderBy(
-        desc(productsTable.createdAt)
+        desc(productsTable.createdAt),
       );
     }
 
@@ -139,22 +158,18 @@ router.get(
 
     res.json(
       ListProductsResponse.parse({
-        products:
-          products.map(formatProduct),
-        total: Number(
-          countResult?.count ?? 0
-        ),
-      })
+        products: products.map(formatProduct),
+        total: Number(countResult?.count ?? 0),
+      }),
     );
-  }
+  },
 );
 
 router.post(
   "/products",
   requireRole("platform_admin"),
   async (req, res): Promise<void> => {
-    const parsed =
-      CreateProductBody.safeParse(req.body);
+    const parsed = CreateProductBody.safeParse(req.body);
 
     if (!parsed.success) {
       res.status(400).json({
@@ -167,12 +182,9 @@ router.post(
       .insert(productsTable)
       .values({
         ...parsed.data,
-        priceKes: String(
-          parsed.data.priceKes
-        ),
+        priceKes: String(parsed.data.priceKes),
         stock: Number(parsed.data.stock),
-        featured:
-          parsed.data.featured ?? false,
+        featured: parsed.data.featured ?? false,
         ownerType: "soko",
         merchantId: null,
         listingStatus: "approved",
@@ -183,10 +195,10 @@ router.post(
       .status(201)
       .json(
         CreateProductResponse.parse(
-          formatProduct(product)
-        )
+          formatProduct(product),
+        ),
       );
-  }
+  },
 );
 
 router.get(
@@ -199,34 +211,33 @@ router.get(
         and(
           eq(
             productsTable.featured,
-            true
+            true,
           ),
           eq(
             productsTable.listingStatus,
-            "approved"
-          )
-        )
+            "approved",
+          ),
+        ),
       )
       .orderBy(
-        desc(productsTable.createdAt)
+        desc(productsTable.createdAt),
       )
       .limit(8);
 
     res.json(
       GetFeaturedProductsResponse.parse(
-        products.map(formatProduct)
-      )
+        products.map(formatProduct),
+      ),
     );
-  }
+  },
 );
 
 router.get(
   "/products/:id",
   async (req, res): Promise<void> => {
-    const params =
-      GetProductParams.safeParse(
-        req.params
-      );
+    const params = GetProductParams.safeParse(
+      req.params,
+    );
 
     if (!params.success) {
       res.status(400).json({
@@ -242,13 +253,13 @@ router.get(
         and(
           eq(
             productsTable.id,
-            params.data.id
+            params.data.id,
           ),
           eq(
             productsTable.listingStatus,
-            "approved"
-          )
-        )
+            "approved",
+          ),
+        ),
       );
 
     if (!product) {
@@ -260,20 +271,19 @@ router.get(
 
     res.json(
       GetProductResponse.parse(
-        formatProduct(product)
-      )
+        formatProduct(product),
+      ),
     );
-  }
+  },
 );
 
 router.patch(
   "/products/:id",
   requireRole("platform_admin"),
   async (req, res): Promise<void> => {
-    const params =
-      UpdateProductParams.safeParse(
-        req.params
-      );
+    const params = UpdateProductParams.safeParse(
+      req.params,
+    );
 
     if (!params.success) {
       res.status(400).json({
@@ -282,10 +292,9 @@ router.patch(
       return;
     }
 
-    const parsed =
-      UpdateProductBody.safeParse(
-        req.body
-      );
+    const parsed = UpdateProductBody.safeParse(
+      req.body,
+    );
 
     if (!parsed.success) {
       res.status(400).json({
@@ -303,7 +312,7 @@ router.patch(
 
     if (parsed.data.priceKes != null) {
       updateData.priceKes = String(
-        parsed.data.priceKes
+        parsed.data.priceKes,
       );
     }
 
@@ -313,8 +322,8 @@ router.patch(
       .where(
         eq(
           productsTable.id,
-          params.data.id
-        )
+          params.data.id,
+        ),
       )
       .returning();
 
@@ -327,20 +336,19 @@ router.patch(
 
     res.json(
       UpdateProductResponse.parse(
-        formatProduct(product)
-      )
+        formatProduct(product),
+      ),
     );
-  }
+  },
 );
 
 router.delete(
   "/products/:id",
   requireRole("platform_admin"),
   async (req, res): Promise<void> => {
-    const params =
-      DeleteProductParams.safeParse(
-        req.params
-      );
+    const params = DeleteProductParams.safeParse(
+      req.params,
+    );
 
     if (!params.success) {
       res.status(400).json({
@@ -354,8 +362,8 @@ router.delete(
       .where(
         eq(
           productsTable.id,
-          params.data.id
-        )
+          params.data.id,
+        ),
       )
       .returning();
 
@@ -367,7 +375,7 @@ router.delete(
     }
 
     res.sendStatus(204);
-  }
+  },
 );
 
 // Reviews
@@ -376,7 +384,7 @@ router.get(
   async (req, res): Promise<void> => {
     const params =
       GetProductReviewsParams.safeParse(
-        req.params
+        req.params,
       );
 
     if (!params.success) {
@@ -399,13 +407,13 @@ router.get(
         and(
           eq(
             productsTable.id,
-            params.data.id
+            params.data.id,
           ),
           eq(
             productsTable.listingStatus,
-            "approved"
-          )
-        )
+            "approved",
+          ),
+        ),
       );
 
     if (!product) {
@@ -421,19 +429,19 @@ router.get(
       .where(
         eq(
           reviewsTable.productId,
-          params.data.id
-        )
+          params.data.id,
+        ),
       )
       .orderBy(
-        desc(reviewsTable.createdAt)
+        desc(reviewsTable.createdAt),
       );
 
     res.json(
       GetProductReviewsResponse.parse(
-        reviews.map(formatReview)
-      )
+        reviews.map(formatReview),
+      ),
     );
-  }
+  },
 );
 
 router.post(
@@ -441,7 +449,7 @@ router.post(
   async (req, res): Promise<void> => {
     const params =
       CreateReviewParams.safeParse(
-        req.params
+        req.params,
       );
 
     if (!params.success) {
@@ -464,13 +472,13 @@ router.post(
         and(
           eq(
             productsTable.id,
-            params.data.id
+            params.data.id,
           ),
           eq(
             productsTable.listingStatus,
-            "approved"
-          )
-        )
+            "approved",
+          ),
+        ),
       );
 
     if (!product) {
@@ -482,7 +490,7 @@ router.post(
 
     const parsed =
       CreateReviewBody.safeParse(
-        req.body
+        req.body,
       );
 
     if (!parsed.success) {
@@ -509,44 +517,44 @@ router.post(
       .where(
         eq(
           reviewsTable.productId,
-          params.data.id
-        )
+          params.data.id,
+        ),
       );
 
     const avgRating =
       reviews.reduce(
         (sum, item) =>
           sum + item.rating,
-        0
+        0,
       ) / reviews.length;
 
     await db
       .update(productsTable)
       .set({
         rating: String(
-          avgRating.toFixed(2)
+          avgRating.toFixed(2),
         ),
         reviewCount: reviews.length,
       })
       .where(
         eq(
           productsTable.id,
-          params.data.id
-        )
+          params.data.id,
+        ),
       );
 
     res
       .status(201)
       .json(
         CreateReviewResponse.parse(
-          formatReview(review)
-        )
+          formatReview(review),
+        ),
       );
-  }
+  },
 );
 
 function formatProduct(
-  p: typeof productsTable.$inferSelect
+  p: typeof productsTable.$inferSelect,
 ) {
   return {
     ...p,
@@ -558,7 +566,7 @@ function formatProduct(
 }
 
 function formatReview(
-  r: typeof reviewsTable.$inferSelect
+  r: typeof reviewsTable.$inferSelect,
 ) {
   return {
     ...r,
