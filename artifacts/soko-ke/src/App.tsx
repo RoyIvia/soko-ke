@@ -1,15 +1,9 @@
+
 import {
   Route,
   Switch,
   Router as WouterRouter,
 } from "wouter";
-
-import {
-  ContactPage,
-  NewSupportTicketPage,
-  MySupportTicketsPage,
-  SupportTicketDetailPage,
-} from "@/pages/support/SupportPages";
 
 import {
   QueryClient,
@@ -22,6 +16,7 @@ import { shadcn } from "@clerk/themes";
 
 import NotFound from "@/pages/not-found";
 
+// Marketplace pages
 import { Home } from "@/pages/Home";
 import { Products } from "@/pages/Products";
 import { ProductDetail } from "@/pages/ProductDetail";
@@ -29,6 +24,15 @@ import { Cart } from "@/pages/Cart";
 import { Checkout } from "@/pages/Checkout";
 import { OrderDetail } from "@/pages/OrderDetail";
 
+// Customer support pages
+import {
+  ContactPage,
+  NewSupportTicketPage,
+  MySupportTicketsPage,
+  SupportTicketDetailPage,
+} from "@/pages/support/SupportPages";
+
+// Admin pages
 import { Dashboard } from "@/pages/admin/Dashboard";
 import { AdminProducts } from "@/pages/admin/Products";
 import { AdminCategories } from "@/pages/admin/Categories";
@@ -36,10 +40,17 @@ import { AdminOrders } from "@/pages/admin/Orders";
 import { AdminMerchants } from "@/pages/admin/Merchants";
 
 import {
+  AdminSupport,
+  AdminSupportDetail,
+} from "@/pages/admin/Support";
+
+// Merchant pages
+import {
   MerchantPortal,
   PromotionSuccess,
 } from "@/pages/MerchantPortal";
 
+// Authentication pages
 import {
   SignInPage,
   SignUpPage,
@@ -65,17 +76,55 @@ function Router() {
   return (
     <Switch>
       {/* Marketplace */}
-      <Route path="/" component={Home} />
-      <Route path="/products" component={Products} />
+      <Route
+        path="/"
+        component={Home}
+      />
+
+      <Route
+        path="/products"
+        component={Products}
+      />
+
       <Route
         path="/products/:id"
         component={ProductDetail}
       />
-      <Route path="/cart" component={Cart} />
-      <Route path="/checkout" component={Checkout} />
+
+      <Route
+        path="/cart"
+        component={Cart}
+      />
+
+      <Route
+        path="/checkout"
+        component={Checkout}
+      />
+
       <Route
         path="/orders/:id"
         component={OrderDetail}
+      />
+
+      {/* Customer support */}
+      <Route
+        path="/contact"
+        component={ContactPage}
+      />
+
+      <Route
+        path="/support/new"
+        component={NewSupportTicketPage}
+      />
+
+      <Route
+        path="/support/tickets"
+        component={MySupportTicketsPage}
+      />
+
+      <Route
+        path="/support/tickets/:id"
+        component={SupportTicketDetailPage}
       />
 
       {/* Authentication */}
@@ -83,6 +132,7 @@ function Router() {
         path="/sign-in/*?"
         component={SignInPage}
       />
+
       <Route
         path="/sign-up/*?"
         component={SignUpPage}
@@ -93,42 +143,50 @@ function Router() {
         path="/merchant"
         component={MerchantPortal}
       />
+
       <Route
         path="/promote/success"
         component={PromotionSuccess}
       />
 
       {/* Administration */}
-      <Route path="/admin" component={Dashboard} />
+      <Route
+        path="/admin"
+        component={Dashboard}
+      />
+
       <Route
         path="/admin/products"
         component={AdminProducts}
       />
+
       <Route
         path="/admin/categories"
         component={AdminCategories}
       />
+
       <Route
         path="/admin/orders"
         component={AdminOrders}
       />
+
       <Route
         path="/admin/merchants"
         component={AdminMerchants}
       />
 
-      {/* Customer support */}
-      <Route path="/contact" component={ContactPage} />
-      <Route path="/support/new" component={NewSupportTicketPage} />
+      {/* Admin support */}
       <Route
-         path="/support/tickets"
-         component={MySupportTicketsPage}
-     />
-     <Route
-      path="/support/tickets/:id"
-      component={SupportTicketDetailPage}
-    />
+        path="/admin/support"
+        component={AdminSupport}
+      />
 
+      <Route
+        path="/admin/support/:id"
+        component={AdminSupportDetail}
+      />
+
+      {/* Fallback */}
       <Route component={NotFound} />
     </Switch>
   );
@@ -146,7 +204,10 @@ function App() {
           <Router />
         </WouterRouter>
 
-        <Toaster position="top-right" richColors />
+        <Toaster
+          position="top-right"
+          richColors
+        />
       </QueryClientProvider>
     </ClerkProvider>
   );
