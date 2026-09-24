@@ -3,6 +3,7 @@ import { Link, useLocation, Redirect } from "wouter";
 import { useUser } from "@clerk/react";
 
 import {
+  Bell,
   LayoutDashboard,
   Package,
   Tags,
@@ -12,6 +13,7 @@ import {
   Headset,
 } from "lucide-react";
 
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { cn } from "@/lib/utils";
 import { useMarketplaceMe } from "@/hooks/use-marketplace";
 
@@ -45,6 +47,11 @@ const navItems = [
     href: "/admin/support",
     label: "Support",
     icon: Headset,
+  },
+  {
+    href: "/notifications",
+    label: "Notifications",
+    icon: Bell,
   },
 ];
 
@@ -151,15 +158,25 @@ export function AdminLayout({
 
       {/* Main content */}
       <main className="flex-1 flex flex-col min-w-0">
-        {/* Mobile header */}
-        <div className="h-16 border-b bg-card flex items-center px-6 md:hidden">
-          <Link
-            href="/admin"
-            className="font-serif text-xl font-bold text-primary"
-          >
-            SokoAdmin
-          </Link>
-        </div>
+        {/* Shared Admin header */}
+        <header className="h-16 shrink-0 border-b bg-card flex items-center justify-between px-4 md:px-8">
+          <div className="min-w-0">
+            <Link
+              href="/admin"
+              className="font-serif text-xl font-bold text-primary md:hidden"
+            >
+              SokoAdmin
+            </Link>
+
+            <span className="hidden md:block text-sm font-semibold text-foreground">
+              SokoKE Administration
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+          </div>
+        </header>
 
         {/* Mobile navigation */}
         <nav className="flex gap-2 overflow-x-auto border-b bg-card px-4 py-3 md:hidden">
@@ -188,6 +205,7 @@ export function AdminLayout({
           })}
         </nav>
 
+        {/* Current Admin page */}
         <div className="p-6 md:p-8 flex-1 overflow-auto">
           {children}
         </div>
