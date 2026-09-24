@@ -44,6 +44,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+import { ImageUpload } from "@/components/ImageUpload";
 import { formatKes } from "@/lib/utils";
 
 import {
@@ -521,6 +522,15 @@ function ApprovedMerchant({
   const [showProductForm, setShowProductForm] =
     useState(false);
 
+  const [creatingImage, setCreatingImage] =
+    useState(false);
+
+  const [editingImage, setEditingImage] =
+    useState(false);
+
+  const imageUploadInProgress =
+    creatingImage || editingImage;
+
   const [editingProfile, setEditingProfile] =
     useState(false);
 
@@ -660,6 +670,11 @@ function ApprovedMerchant({
   const startEditingProduct = (
     product: MerchantProduct
   ) => {
+    if (imageUploadInProgress) {
+      toast.error("Wait for the image upload to finish");
+      return;
+    }
+
     setEditingProduct(product);
 
     setEditProductForm({
@@ -683,6 +698,11 @@ function ApprovedMerchant({
   };
 
   const cancelEditingProduct = () => {
+    if (imageUploadInProgress) {
+      toast.error("Wait for the image upload to finish");
+      return;
+    }
+
     setEditingProduct(null);
 
     setEditProductForm({
@@ -754,6 +774,10 @@ function ApprovedMerchant({
   };
 
   const createNewProduct = () => {
+    if (imageUploadInProgress) {
+      return;
+    }
+
     const data =
       toProductInput(newProduct);
 
@@ -792,7 +816,7 @@ function ApprovedMerchant({
   };
 
   const saveProduct = () => {
-    if (!editingProduct) {
+    if (imageUploadInProgress || !editingProduct) {
       return;
     }
 
@@ -984,6 +1008,7 @@ function ApprovedMerchant({
                   ? "outline"
                   : "default"
               }
+              disabled={imageUploadInProgress}
               onClick={() => {
                 setShowProductForm(
                   !showProductForm
@@ -1020,14 +1045,14 @@ function ApprovedMerchant({
 
               <ProductForm
                 form={newProduct}
-                onChange={
-                  updateProductForm
-                }
+                onChange={updateProductForm}
+                onUploadingChange={setCreatingImage}
               />
 
               <Button
                 disabled={
-                  createProduct.isPending
+                  createProduct.isPending ||
+                  imageUploadInProgress
                 }
                 onClick={
                   createNewProduct
@@ -1088,6 +1113,7 @@ function ApprovedMerchant({
                     <Button
                       size="sm"
                       variant="outline"
+                      disabled={imageUploadInProgress}
                       onClick={() => {
                         setShowProductForm(
                           false
@@ -1118,7 +1144,8 @@ function ApprovedMerchant({
                       variant="ghost"
                       className="text-destructive"
                       disabled={
-                        deleteProduct.isPending
+                        deleteProduct.isPending ||
+                        imageUploadInProgress
                       }
                       onClick={() => {
                         if (
@@ -1187,19 +1214,18 @@ function ApprovedMerchant({
                       </div>
 
                       <ProductForm
-                        form={
-                          editProductForm
-                        }
-                        onChange={
-                          updateEditProductField
-                        }
+                        key={product.id}
+                        form={editProductForm}
+                        onChange={updateEditProductField}
+                        onUploadingChange={setEditingImage}
                       />
 
                       <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           disabled={
-                            updateProduct.isPending
+                            updateProduct.isPending ||
+                            imageUploadInProgress
                           }
                           onClick={
                             saveProduct
@@ -1214,7 +1240,8 @@ function ApprovedMerchant({
                           size="sm"
                           variant="outline"
                           disabled={
-                            updateProduct.isPending
+                            updateProduct.isPending ||
+                            imageUploadInProgress
                           }
                           onClick={
                             cancelEditingProduct
@@ -1406,15 +1433,23 @@ function ApprovedMerchant({
 function ProductForm({
   form,
   onChange,
+  onUploadingChange,
 }: {
   form: ProductFormState;
   onChange: (
     key: keyof ProductFormState,
     value: string
   ) => void;
+  onUploadingChange: (uploading: boolean) => void;
 }) {
   return (
     <>
+      <ImageUpload
+        purpose="product"
+        imageUrl={form.imageUrl}
+        onUploaded={(url) => onChange("imageUrl", url)}
+        onUploadingChange={onUploadingChange}
+      />
       <div className="grid sm:grid-cols-2 gap-4">
         <Field
           label="Product name"
