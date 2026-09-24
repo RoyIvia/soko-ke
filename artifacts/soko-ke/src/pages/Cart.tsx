@@ -1,19 +1,170 @@
+
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useSession } from "@/hooks/use-session";
-import { 
-  useGetCart, 
-  useUpdateCartItem, 
+
+import {
+  useGetCart,
+  useUpdateCartItem,
   useRemoveCartItem,
-  getGetCartQueryKey 
+  getGetCartQueryKey,
 } from "@workspace/api-client-react";
+
 import { useQueryClient } from "@tanstack/react-query";
 import { formatKes } from "@/lib/utils";
 import { ShopLayout } from "@/components/layout/ShopLayout";
 import { Button } from "@/components/ui/button";
-import { Minus, Plus, Trash2, ArrowRight, ShoppingBag } from "lucide-react";
+
+import {
+  Minus,
+  Plus,
+  Trash2,
+  ArrowRight,
+  ShoppingBag,
+} from "lucide-react";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+
+type QuantityControlProps = {
+  quantity: number;
+  stock: number;
+  disabled: boolean;
+  onUpdate: (quantity: number) => Promise<void>;
+};
+
+function QuantityControl({
+  quantity,
+  stock,
+  disabled,
+  onUpdate,
+}: QuantityControlProps) {
+  const [draft, setDraft] = useState(String(quantity));
+
+  useEffect(() => {
+    setDraft(String(quantity));
+  }, [quantity]);
+
+  const saveQuantity = async (value: string) => {
+    const trimmed = value.trim();
+
+    if (!/^\d+$/.test(trimmed)) {
+      setDraft(String(quantity));
+      toast.error("Enter a valid whole number.");
+      return;
+    }
+
+    const nextQuantity = Number(trimmed);
+
+    if (
+      !Number.isSafeInteger(nextQuantity) ||
+      nextQuantity < 1
+    ) {
+      setDraft(String(quantity));
+      toast.error("Quantity must be at least 1.");
+      return;
+    }
+
+    if (nextQuantity > stock) {
+      setDraft(String(quantity));
+      toast.error(
+        `Only ${stock} item${stock === 1 ? "" : "s"} available in stock.`,
+      );
+      return;
+    }
+
+    if (nextQuantity === quantity) {
+      setDraft(String(quantity));
+      return;
+    }
+
+    try {
+      await onUpdate(nextQuantity);
+      setDraft(String(nextQuantity));
+    } catch (error) {
+      setDraft(String(quantity));
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to update quantity.",
+      );
+    }
+  };
+
+  const handleStep = async (change: number) => {
+    if (disabled) return;
+
+    const nextQuantity = quantity + change;
+
+    if (nextQuantity < 1 || nextQuantity > stock) {
+      return;
+    }
+
+    await saveQuantity(String(nextQuantity));
+  };
+
+  return (
+    <div className="flex h-10 items-center overflow-hidden rounded-md border border-input bg-background">
+      <button
+        type="button"
+        aria-label="Decrease quantity"
+        className="flex h-full w-10 items-center justify-center transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => void handleStep(-1)}
+        disabled={disabled || quantity <= 1}
+      >
+        <Minus className="h-3 w-3" />
+      </button>
+
+      <input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        aria-label="Item quantity"
+        value={draft}
+        disabled={disabled}
+        onChange={(event) => {
+          const value = event.target.value;
+
+          if (/^\d*$/.test(value)) {
+            setDraft(value);
+          }
+        }}
+        onFocus={(event) => event.currentTarget.select()}
+        onBlur={(event) => {
+          if (!disabled) {
+            void saveQuantity(event.currentTarget.value);
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          }
+
+          if (event.key === "Escape") {
+            event.currentTarget.value = String(quantity);
+            setDraft(String(quantity));
+            event.currentTarget.blur();
+          }
+        }}
+        className="h-full w-14 border-x border-input bg-transparent px-1 text-center text-sm font-semibold outline-none focus:bg-muted/30 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary disabled:opacity-50"
+      />
+
+      <button
+        type="button"
+        aria-label="Increase quantity"
+        className="flex h-full w-10 items-center justify-center transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => void handleStep(1)}
+        disabled={disabled || quantity >= stock}
+      >
+        <Plus className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
 
 export function Cart() {
   const sessionId = useSession();
@@ -22,22 +173,38 @@ export function Cart() {
 
   const { data: cart, isLoading } = useGetCart(
     { sessionId },
-    { query: { queryKey: ["/api/cart", sessionId], enabled: !!sessionId } }
+    {
+      query: {
+        queryKey: ["/api/cart", sessionId],
+        enabled: !!sessionId,
+      },
+    },
   );
 
   const updateItemMutation = useUpdateCartItem();
   const removeItemMutation = useRemoveCartItem();
 
-  const handleUpdateQty = (itemId: number, newQty: number) => {
-    if (newQty < 1) return;
-    updateItemMutation.mutate(
-      { id: itemId, data: { quantity: newQty } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetCartQueryKey({ sessionId }) });
-        }
-      }
-    );
+  const refreshCart = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["/api/cart", sessionId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: getGetCartQueryKey({ sessionId }),
+      }),
+    ]);
+  };
+
+  const handleUpdateQty = async (
+    itemId: number,
+    newQty: number,
+  ) => {
+    await updateItemMutation.mutateAsync({
+      id: itemId,
+      data: { quantity: newQty },
+    });
+
+    await refreshCart();
   };
 
   const handleRemove = (itemId: number) => {
@@ -45,10 +212,17 @@ export function Cart() {
       { id: itemId },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetCartQueryKey({ sessionId }) });
+          void refreshCart();
           toast.success("Item removed from cart");
-        }
-      }
+        },
+        onError: (error) => {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Unable to remove item.",
+          );
+        },
+      },
     );
   };
 
@@ -56,138 +230,190 @@ export function Cart() {
 
   return (
     <ShopLayout>
-      <div className="container mx-auto px-4 md:px-6 py-12 max-w-5xl">
-        <h1 className="text-3xl md:text-4xl font-bold font-serif mb-8 text-foreground">Shopping Cart</h1>
+      <div className="container mx-auto max-w-5xl px-4 py-12 md:px-6">
+        <h1 className="mb-8 font-serif text-3xl font-bold text-foreground md:text-4xl">
+          Shopping Cart
+        </h1>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
-            <div className="lg:col-span-2 space-y-4">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-12">
+            <div className="space-y-4 lg:col-span-2">
               {[1, 2].map((i) => (
-                <Skeleton key={i} className="h-32 w-full rounded-xl" />
+                <Skeleton
+                  key={i}
+                  className="h-32 w-full rounded-xl"
+                />
               ))}
             </div>
+
             <div>
               <Skeleton className="h-64 w-full rounded-2xl" />
             </div>
           </div>
         ) : isEmpty ? (
-          <div className="text-center py-24 bg-muted/20 rounded-2xl border border-dashed">
-            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
-              <ShoppingBag className="w-10 h-10 text-muted-foreground" />
+          <div className="rounded-2xl border border-dashed bg-muted/20 py-24 text-center">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+              <ShoppingBag className="h-10 w-10 text-muted-foreground" />
             </div>
-            <h2 className="text-2xl font-bold font-serif mb-4">Your cart is empty</h2>
-            <p className="text-muted-foreground mb-8">Looks like you haven't added anything yet.</p>
+
+            <h2 className="mb-4 font-serif text-2xl font-bold">
+              Your cart is empty
+            </h2>
+
+            <p className="mb-8 text-muted-foreground">
+              Looks like you haven't added anything yet.
+            </p>
+
             <Link href="/products">
               <Button size="lg">Start Shopping</Button>
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
-            {/* Cart Items */}
-            <div className="lg:col-span-2 space-y-4">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-12">
+            {/* Cart items */}
+            <div className="space-y-4 lg:col-span-2">
               <AnimatePresence>
                 {cart.items.map((item) => (
-                  <motion.div 
+                  <motion.div
                     key={item.id}
                     layout
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-                    className="flex flex-col sm:flex-row gap-4 p-4 rounded-xl border bg-card relative group"
+                    exit={{
+                      opacity: 0,
+                      scale: 0.95,
+                      transition: { duration: 0.2 },
+                    }}
+                    className="group relative flex flex-col gap-4 rounded-xl border bg-card p-4 sm:flex-row"
                   >
-                    <Link href={`/products/${item.product.id}`} className="shrink-0">
-                      <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden bg-muted">
-                        <img 
-                          src={item.product.imageUrl} 
-                          alt={item.product.name} 
-                          className="w-full h-full object-cover"
+                    <Link
+                      href={`/products/${item.product.id}`}
+                      className="shrink-0"
+                    >
+                      <div className="h-24 w-24 overflow-hidden rounded-lg bg-muted sm:h-32 sm:w-32">
+                        <img
+                          src={item.product.imageUrl}
+                          alt={item.product.name}
+                          className="h-full w-full object-cover"
                         />
                       </div>
                     </Link>
-                    
-                    <div className="flex-1 flex flex-col justify-between py-1">
-                      <div className="flex justify-between items-start pr-8">
+
+                    <div className="flex flex-1 flex-col justify-between py-1">
+                      <div className="flex items-start justify-between pr-8">
                         <div>
-                          <h3 className="font-bold text-lg leading-tight mb-1 hover:text-primary transition-colors">
-                            <Link href={`/products/${item.product.id}`}>{item.product.name}</Link>
+                          <h3 className="mb-1 text-lg font-bold leading-tight transition-colors hover:text-primary">
+                            <Link
+                              href={`/products/${item.product.id}`}
+                            >
+                              {item.product.name}
+                            </Link>
                           </h3>
-                          <p className="text-sm text-muted-foreground">{item.product.category}</p>
+
+                          <p className="text-sm text-muted-foreground">
+                            {item.product.category}
+                          </p>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center justify-between mt-4">
-                        <div className="flex items-center h-10 rounded-md border border-input bg-background overflow-hidden">
-                          <button 
-                            className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-50"
-                            onClick={() => handleUpdateQty(item.id, item.quantity - 1)}
-                            disabled={item.quantity <= 1 || updateItemMutation.isPending}
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <div className="w-10 h-full flex items-center justify-center font-semibold text-sm border-x border-input">
-                            {item.quantity}
-                          </div>
-                          <button 
-                            className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-50"
-                            onClick={() => handleUpdateQty(item.id, item.quantity + 1)}
-                            disabled={item.quantity >= item.product.stock || updateItemMutation.isPending}
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                        
-                        <p className="font-bold text-lg text-primary">
-                          {formatKes(item.product.priceKes * item.quantity)}
+
+                      <div className="mt-4 flex items-center justify-between gap-4">
+                        <QuantityControl
+                          quantity={item.quantity}
+                          stock={item.product.stock}
+                          disabled={updateItemMutation.isPending}
+                          onUpdate={(newQty) =>
+                            handleUpdateQty(item.id, newQty)
+                          }
+                        />
+
+                        <p className="text-right text-lg font-bold text-primary">
+                          {formatKes(
+                            item.product.priceKes * item.quantity,
+                          )}
                         </p>
                       </div>
                     </div>
 
-                    <button 
+                    <button
+                      type="button"
                       onClick={() => handleRemove(item.id)}
-                      className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                      disabled={removeItemMutation.isPending}
+                      className="absolute right-4 top-4 rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                       aria-label="Remove item"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash2 className="h-5 w-5" />
                     </button>
                   </motion.div>
                 ))}
               </AnimatePresence>
             </div>
 
-            {/* Order Summary */}
+            {/* Order summary */}
             <div>
-              <div className="bg-muted/30 rounded-2xl border p-6 sticky top-24">
-                <h3 className="text-xl font-bold font-serif mb-6 border-b pb-4">Order Summary</h3>
-                
-                <div className="space-y-4 mb-6 text-sm">
+              <div className="sticky top-24 rounded-2xl border bg-muted/30 p-6">
+                <h3 className="mb-6 border-b pb-4 font-serif text-xl font-bold">
+                  Order Summary
+                </h3>
+
+                <div className="mb-6 space-y-4 text-sm">
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Subtotal ({cart.items.reduce((a, b) => a + b.quantity, 0)} items)</span>
-                    <span>{formatKes(cart.subtotalKes)}</span>
+                    <span>
+                      Subtotal (
+                      {cart.items.reduce(
+                        (total, item) =>
+                          total + item.quantity,
+                        0,
+                      )}{" "}
+                      items)
+                    </span>
+
+                    <span>
+                      {formatKes(cart.subtotalKes)}
+                    </span>
                   </div>
+
                   <div className="flex justify-between text-muted-foreground">
                     <span>Shipping</span>
                     <span>Calculated at checkout</span>
                   </div>
                 </div>
-                
-                <div className="border-t pt-4 mb-8">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-bold text-lg">Total</span>
-                    <span className="font-bold text-2xl text-primary">{formatKes(cart.subtotalKes)}</span>
+
+                <div className="mb-8 border-t pt-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-lg font-bold">
+                      Total
+                    </span>
+
+                    <span className="text-2xl font-bold text-primary">
+                      {formatKes(cart.subtotalKes)}
+                    </span>
                   </div>
-                  <p className="text-xs text-muted-foreground text-right">Taxes included where applicable</p>
+
+                  <p className="text-right text-xs text-muted-foreground">
+                    Taxes included where applicable
+                  </p>
                 </div>
-                
-                <Button 
-                  size="lg" 
-                  className="w-full h-14 text-lg"
+
+                <Button
+                  size="lg"
+                  className="h-14 w-full text-lg"
                   onClick={() => setLocation("/checkout")}
+                  disabled={
+                    updateItemMutation.isPending ||
+                    removeItemMutation.isPending
+                  }
                 >
-                  Proceed to Checkout <ArrowRight className="ml-2 w-5 h-5" />
+                  Proceed to Checkout
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-                
-                <div className="mt-6 flex justify-center items-center gap-2 text-xs text-muted-foreground">
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/1/15/M-PESA_LOGO-01.svg" alt="M-Pesa" className="h-6 opacity-80" />
+
+                <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/1/15/M-PESA_LOGO-01.svg"
+                    alt="M-Pesa"
+                    className="h-6 opacity-80"
+                  />
+
                   <span>Secure checkout via M-Pesa</span>
                 </div>
               </div>
