@@ -89,6 +89,24 @@ export interface Category {
   productCount: number;
 }
 
+export interface CategoryInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  slug: string;
+  /** @minLength 1 */
+  imageUrl: string;
+}
+
+export interface CategoryUpdate {
+  /** @minLength 1 */
+  name?: string;
+  /** @minLength 1 */
+  slug?: string;
+  /** @minLength 1 */
+  imageUrl?: string;
+}
+
 export interface CartItem {
   id: number;
   sessionId: string;

@@ -11,6 +11,8 @@ export * from './cartItem';
 export * from './cartItemInput';
 export * from './cartItemUpdate';
 export * from './category';
+export * from './categoryInput';
+export * from './categoryUpdate';
 export * from './dashboardSummary';
 export * from './dashboardSummaryOrdersByStatusItem';
 export * from './getCartParams';

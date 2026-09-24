@@ -1,8 +1,18 @@
-import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Loader2 } from "lucide-react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  ImagePlus,
+  Loader2,
+} from "lucide-react";
+
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+
 import {
   uploadImage,
   type MediaPurpose,
@@ -13,6 +23,7 @@ type ImageUploadProps = {
   imageUrl: string;
   onUploaded: (url: string) => void;
   onUploadingChange?: (uploading: boolean) => void;
+  label?: string;
 };
 
 export function ImageUpload({
@@ -20,14 +31,15 @@ export function ImageUpload({
   imageUrl,
   onUploaded,
   onUploadingChange,
+  label = "Product image",
 }: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] =
+    useState(false);
 
-  const [previewUrl, setPreviewUrl] = useState<string | null>(
-    null
-  );
+  const [previewUrl, setPreviewUrl] =
+    useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -38,7 +50,7 @@ export function ImageUpload({
   }, [previewUrl]);
 
   const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
 
@@ -47,12 +59,14 @@ export function ImageUpload({
     }
 
     if (
-      !["image/jpeg", "image/png", "image/webp"].includes(
-        file.type
-      )
+      ![
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+      ].includes(file.type)
     ) {
       toast.error(
-        "Only JPEG, PNG, and WebP images are supported"
+        "Only JPEG, PNG, and WebP images are supported",
       );
 
       event.target.value = "";
@@ -63,7 +77,9 @@ export function ImageUpload({
       file.size <= 0 ||
       file.size > 5 * 1024 * 1024
     ) {
-      toast.error("Image must be 5 MiB or smaller");
+      toast.error(
+        "Image must be 5 MiB or smaller",
+      );
 
       event.target.value = "";
       return;
@@ -72,20 +88,27 @@ export function ImageUpload({
     setUploading(true);
     onUploadingChange?.(true);
 
-    const localPreview = URL.createObjectURL(file);
+    const localPreview =
+      URL.createObjectURL(file);
+
     setPreviewUrl(localPreview);
 
     try {
-      const result = await uploadImage(file, purpose);
+      const result = await uploadImage(
+        file,
+        purpose,
+      );
 
       onUploaded(result.publicUrl);
 
-      toast.success("Image uploaded successfully");
+      toast.success(
+        "Image uploaded successfully",
+      );
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Image upload failed"
+          : "Image upload failed",
       );
 
       setPreviewUrl(null);
@@ -102,7 +125,7 @@ export function ImageUpload({
   return (
     <div className="space-y-3">
       <label className="text-sm font-medium">
-        Product image
+        {label}
       </label>
 
       <div className="flex flex-col sm:flex-row gap-4 rounded-xl border p-4">
@@ -110,7 +133,7 @@ export function ImageUpload({
           {previewUrl || imageUrl ? (
             <img
               src={previewUrl ?? imageUrl}
-              alt="Product preview"
+              alt={label}
               className="h-full w-full object-cover"
             />
           ) : (
@@ -132,7 +155,9 @@ export function ImageUpload({
             type="button"
             variant="outline"
             disabled={uploading}
-            onClick={() => inputRef.current?.click()}
+            onClick={() =>
+              inputRef.current?.click()
+            }
           >
             {uploading ? (
               <>

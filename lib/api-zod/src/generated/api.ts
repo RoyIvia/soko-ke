@@ -268,6 +268,66 @@ export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem)
 
 
 /**
+ * @summary Create category
+ */
+
+
+
+
+
+export const CreateCategoryBody = zod.object({
+  "name": zod.string().min(1),
+  "slug": zod.string().min(1),
+  "imageUrl": zod.string().min(1)
+})
+
+export const CreateCategoryResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "imageUrl": zod.string(),
+  "productCount": zod.number()
+})
+
+
+/**
+ * @summary Update category
+ */
+export const UpdateCategoryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+
+
+export const UpdateCategoryBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "slug": zod.string().min(1).optional(),
+  "imageUrl": zod.string().min(1).optional()
+})
+
+export const UpdateCategoryResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "imageUrl": zod.string(),
+  "productCount": zod.number()
+})
+
+
+/**
+ * @summary Delete category
+ */
+export const DeleteCategoryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCategoryResponse = zod.void()
+
+
+/**
  * @summary Get cart for current session
  */
 export const GetCartQueryParams = zod.object({
