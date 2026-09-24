@@ -5,6 +5,13 @@ import {
 } from "wouter";
 
 import {
+  ContactPage,
+  NewSupportTicketPage,
+  MySupportTicketsPage,
+  SupportTicketDetailPage,
+} from "@/pages/support/SupportPages";
+
+import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
@@ -109,6 +116,18 @@ function Router() {
         path="/admin/merchants"
         component={AdminMerchants}
       />
+
+      {/* Customer support */}
+      <Route path="/contact" component={ContactPage} />
+      <Route path="/support/new" component={NewSupportTicketPage} />
+      <Route
+         path="/support/tickets"
+         component={MySupportTicketsPage}
+     />
+     <Route
+      path="/support/tickets/:id"
+      component={SupportTicketDetailPage}
+    />
 
       <Route component={NotFound} />
     </Switch>
