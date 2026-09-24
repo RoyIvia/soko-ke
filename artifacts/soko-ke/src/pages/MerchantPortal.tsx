@@ -23,6 +23,9 @@ import {
   useUser,
   UserButton,
 } from "@clerk/react";
+import {
+  useListCategories,
+} from "@workspace/api-client-react";
 import { toast } from "sonner";
 
 import {
@@ -1442,6 +1445,10 @@ function ProductForm({
   ) => void;
   onUploadingChange: (uploading: boolean) => void;
 }) {
+  const {
+    data: categories = [],
+  } = useListCategories();
+
   return (
     <>
       <ImageUpload
@@ -1501,17 +1508,37 @@ function ProductForm({
           type="number"
         />
 
-        <Field
-          label="Category"
-          value={form.category}
-          onChange={(value) =>
-            onChange(
-              "category",
-              value
-            )
-          }
-          placeholder="Crafts"
-        />
+        <div>
+          <label className="text-sm font-medium">
+            Category
+          </label>
+
+          <select
+            value={form.category}
+            onChange={(event) =>
+              onChange(
+                "category",
+                event.target.value
+              )
+            }
+            className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <option value="">
+              Select category
+            </option>
+
+            {categories.map(
+              (category) => (
+                <option
+                  key={category.id}
+                  value={category.slug}
+                >
+                  {category.name}
+                </option>
+              )
+            )}
+          </select>
+        </div>
 
         <Field
           label="County"
