@@ -6,6 +6,7 @@ import cartRouter from "./cart";
 import ordersRouter from "./orders";
 import dashboardRouter from "./dashboard";
 import marketplaceRouter from "./marketplace";
+import mediaRouter from "./media";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(cartRouter);
 router.use(ordersRouter);
 router.use(dashboardRouter);
 router.use(marketplaceRouter);
+router.use(mediaRouter);
 
 export default router;
