@@ -1,24 +1,33 @@
+
 import {
   useEffect,
   useState,
 } from "react";
+
 import {
   Link,
   useLocation,
   useSearch,
 } from "wouter";
+
 import {
   ShoppingBag,
   Search,
 } from "lucide-react";
+
 import {
   Show,
   UserButton,
 } from "@clerk/react";
+
 import { useSession } from "@/hooks/use-session";
 import { useMarketplaceMe } from "@/hooks/use-marketplace";
+
 import { useGetCart } from "@workspace/api-client-react";
+
 import { Badge } from "@/components/ui/badge";
+
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export function Navbar() {
   const sessionId = useSession();
@@ -45,15 +54,9 @@ export function Navbar() {
     },
   );
 
-  /*
-   * Keep the navbar search box synchronized with
-   * the current product search URL.
-   */
   useEffect(() => {
     const params =
-      new URLSearchParams(
-        searchString,
-      );
+      new URLSearchParams(searchString);
 
     setSearchTerm(
       params.get("search") || "",
@@ -61,9 +64,9 @@ export function Navbar() {
   }, [searchString]);
 
   const handleSearch = (
-    e: React.FormEvent,
+    event: React.FormEvent,
   ) => {
-    e.preventDefault();
+    event.preventDefault();
 
     const term = searchTerm.trim();
 
@@ -128,16 +131,16 @@ export function Navbar() {
             type="search"
             placeholder="Search products..."
             value={searchTerm}
-            onChange={(e) =>
+            onChange={(event) =>
               setSearchTerm(
-                e.target.value,
+                event.target.value,
               )
             }
             className="w-full h-10 pl-9 pr-4 rounded-full border border-input bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-sm"
           />
         </form>
 
-        <nav className="flex items-center gap-4">
+        <nav className="flex items-center gap-2 md:gap-4">
           <Link
             href="/products"
             className="text-sm font-medium hover:text-primary transition-colors hidden md:block"
@@ -181,6 +184,8 @@ export function Navbar() {
                 Admin
               </Link>
             )}
+
+            <NotificationBell />
 
             <UserButton />
           </Show>

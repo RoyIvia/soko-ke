@@ -10,6 +10,7 @@ import {
   QueryClientProvider,
 } from "@tanstack/react-query";
 
+import { NotificationsPage } from "@/pages/Notifications";
 import { Toaster } from "sonner";
 import { ClerkProvider } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
@@ -84,6 +85,11 @@ function Router() {
       <Route
         path="/products"
         component={Products}
+      />
+
+      <Route
+        path="/notifications"
+        component={NotificationsPage}
       />
 
       <Route
