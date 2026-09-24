@@ -1,4 +1,3 @@
-
 import { Router, type IRouter } from "express";
 
 import healthRouter from "./health";
@@ -10,6 +9,7 @@ import dashboardRouter from "./dashboard";
 import marketplaceRouter from "./marketplace";
 import mediaRouter from "./media";
 import supportRouter from "./support";
+import storefrontsRouter from "./storefronts";
 
 const router: IRouter = Router();
 
@@ -22,5 +22,6 @@ router.use(dashboardRouter);
 router.use(marketplaceRouter);
 router.use(mediaRouter);
 router.use(supportRouter);
+router.use(storefrontsRouter);
 
 export default router;
