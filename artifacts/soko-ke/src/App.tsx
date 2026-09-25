@@ -21,6 +21,7 @@ import NotFound from "@/pages/not-found";
 import { Home } from "@/pages/Home";
 import { Products } from "@/pages/Products";
 import { ProductDetail } from "@/pages/ProductDetail";
+import { MerchantStorefront } from "@/pages/MerchantStorefront";
 import { Cart } from "@/pages/Cart";
 import { Checkout } from "@/pages/Checkout";
 import { OrderDetail } from "@/pages/OrderDetail";
@@ -95,6 +96,11 @@ function Router() {
       <Route
         path="/products/:id"
         component={ProductDetail}
+      />
+
+      <Route
+        path="/merchants/:slug"
+        component={MerchantStorefront}
       />
 
       <Route
